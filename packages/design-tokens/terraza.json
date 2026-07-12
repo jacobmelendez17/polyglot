@@ -1,0 +1,12 @@
+{
+  "name": "terraza",
+  "chosen_at": "2026-07-11",
+  "color": {
+    "bg": "#F7EFE7", "bgGrid": "#EFE2D4", "ink": "#3E4440", "soft": "#96938A",
+    "accent": "#7FA69B", "accentInk": "#1F2E29", "pill": "#E9DCCC",
+    "green": "#BFD8CE", "pink": "#EBC3B4", "gold": "#EFCF8E",
+    "dash": "#E1D3C2", "card": "#FFFFFF", "danger": "#C97B6B"
+  },
+  "font": { "ui": "Shantell Sans", "empty": "Lora italic" },
+  "radius": { "card": 20, "pill": 999 }
+}

@@ -1,0 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import "../../../packages/design-tokens/terraza.css";
+
+body {
+  background-color: var(--lg-bg);
+  color: var(--lg-ink);
+  font-family: var(--lg-font-ui);
+  letter-spacing: var(--lg-tracking);
+  background-image:
+    linear-gradient(var(--lg-bg-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--lg-bg-grid) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
