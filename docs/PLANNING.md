@@ -1,4 +1,4 @@
-# Lengua — Pre-Implementation Planning Package
+# Polyglot — Pre-Implementation Planning Package
 
 Spanish/Tagalog SRS language-learning platform. Latin America-inspired design.
 This document covers deliverables 1–9. Deliverable 10 (design prototypes) is in `design-options/`.
@@ -547,3 +547,41 @@ Adobe cream background with grid-paper texture, dusty-teal primary, blush/marigo
 Shantell Sans lowercase UI with wide tracking, Lora italic empty states, pill tabs,
 dashed dividers. Tokens locked in `packages/design-tokens/terraza.{css,json}` — all UI
 derives from these; no ad-hoc colors.
+
+---
+
+## Slice 1b — Database Schema, Migration, Importer (completed 2026-07-12)
+
+**Delivered**
+- 38 SQLAlchemy tables across `identity`, `curriculum`, `progress`, `platform`
+  modules; UUID PKs, timestamps, content status + soft delete, and a DB-level
+  CHECK constraint enforcing "only nouns carry articles" (§6).
+- Alembic initial migration, verified **reversible** on Postgres 16 (3 full
+  up/down cycles) with **zero model↔migration drift**. Enum types are created
+  once and dropped in `downgrade()` (fixes the classic re-upgrade collision).
+- Pure, testable CSV importer (`app/importer/curriculum_csv.py`) + idempotent
+  DB import service. Imports content as **draft**; never publishes, never guesses
+  articles/gender, never auto-corrects suspect content — it flags.
+- Seed data (owner user, es-MX + tl languages with stage names, 14-widget catalog).
+- 19 tests pass, including runs against the **real uploaded CSVs**.
+
+**Confirmed data findings (supersede the §0 estimates):**
+| Finding | Verified value |
+|---|---|
+| Vocab rows in CSV | 468 |
+| Rows with a hard error | 1 — row 41 `nosotros` has no translation |
+| In-level duplicates (merged + flagged) | 2 — `el martes` @L3, `algo` @L10 |
+| Distinct vocab items imported | 465 |
+| Level 1 count | 47 (one row dropped for the error above) |
+| Level 6 count | 36 (batch 4 absent) |
+| Grammar points | 59 across L1–L5 (L4 has 11) |
+| Untranslated / term==translation rows | 0 (data cleaner than first audit suggested) |
+| `nunca`="always" issue | not present in this CSV (suspect-flag mechanism retained for future) |
+
+**Notable:** DB-backed tests use `pgserver` (bundled Postgres), so the suite —
+and CI — exercises real Postgres, enums, and constraints **without Docker**.
+This also means your Mac can run the backend tests even before Docker Desktop
+finishes installing: `cd apps/api && pip install ".[dev]" && pytest`.
+
+**Next — slice 1c:** Auth.js in Next.js issuing short-lived JWTs, FastAPI JWKS
+verification, refresh-session rotation, and the capability/role authorization layer.

@@ -11,7 +11,7 @@ def create_app() -> FastAPI:
     configure_logging(settings.api_env)
 
     app = FastAPI(
-        title="Lengua API",
+        title="Polyglot API",
         docs_url="/docs" if settings.api_env == "development" else None,
         redoc_url=None,
         openapi_url="/openapi.json" if settings.api_env == "development" else None,

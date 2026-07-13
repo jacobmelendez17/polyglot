@@ -2,13 +2,13 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-lengua}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lengua_dev_only}
-      POSTGRES_DB: ${POSTGRES_DB:-lengua}
+      POSTGRES_USER: ${POSTGRES_USER:-polyglot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-polyglot_dev_only}
+      POSTGRES_DB: ${POSTGRES_DB:-polyglot}
     ports: ["5432:5432"]
     volumes: [pgdata:/var/lib/postgresql/data]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-lengua}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-polyglot}"]
       interval: 5s
       retries: 10
 

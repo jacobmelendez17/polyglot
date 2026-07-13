@@ -1,4 +1,4 @@
-# lengua ✦
+# polyglot ✦
 
 A cozy, SRS-powered path to real Spanish fluency (Latin American / Mexican dialect first,
 Tagalog next). Learn vocabulary and grammar through leveled lessons, keep them through
@@ -7,7 +7,7 @@ through practice that unlocks as you progress.
 
 ## Why it exists
 
-Most apps either gamify without retention or drill without joy. Lengua pairs a serious
+Most apps either gamify without retention or drill without joy. Polyglot pairs a serious
 SRS engine (nine stages, Beginner 1 → Fluent) with a warm, journal-like interface —
 the "Terraza" design language — so daily study feels like a ritual, not a chore.
 
@@ -43,5 +43,5 @@ docs/           PLANNING.md — architecture, schema, SRS spec, phases
 
 ## Status
 
-Phase 1, slice 1a (scaffold, CI, health checks) — see `docs/PLANNING.md` for the full
+Phase 1, slice 1b (database schema, reversible migration, curriculum importer) — see `docs/PLANNING.md` for the full
 phased roadmap, definition of done, and open decisions.

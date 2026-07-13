@@ -1,0 +1,15 @@
+pyproject.toml
+app/__init__.py
+app/main.py
+app/api/__init__.py
+app/api/routes/__init__.py
+app/api/routes/health.py
+app/core/__init__.py
+app/core/config.py
+app/core/logging.py
+lengua_api.egg-info/PKG-INFO
+lengua_api.egg-info/SOURCES.txt
+lengua_api.egg-info/dependency_links.txt
+lengua_api.egg-info/requires.txt
+lengua_api.egg-info/top_level.txt
+tests/test_health.py

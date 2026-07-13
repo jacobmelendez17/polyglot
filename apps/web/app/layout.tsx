@@ -6,7 +6,7 @@ const shantell = Shantell_Sans({ subsets: ["latin"], variable: "--font-shantell"
 const lora = Lora({ subsets: ["latin"], style: ["italic"], variable: "--font-lora" });
 
 export const metadata: Metadata = {
-  title: "lengua ✦ learn spanish, cozily",
+  title: "polyglot ✦ learn spanish, cozily",
   description:
     "An SRS-powered path to Spanish fluency — vocabulary, grammar, listening, writing, and speaking on one cozy journey.",
 };

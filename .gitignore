@@ -8,7 +8,3 @@ __pycache__/
 .mypy_cache/
 coverage/
 dist/
-
-.DS_Store
-*.egg-info/
-next-env.d.ts

@@ -6,7 +6,7 @@ export default function Home() {
   return (
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col items-center justify-center gap-6 p-8 text-center">
       <span className="rounded-full bg-terraza-pill px-4 py-2 text-sm tracking-label">
-        LENGUA · TERRAZA
+        POLYGLOT · TERRAZA
       </span>
       <h1 className="text-4xl lowercase tracking-cozy">
         hola <span className="text-terraza-accent">✦</span>
