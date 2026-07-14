@@ -620,3 +620,35 @@ issuer) swaps in at `verify_access_token` without touching call sites.
 
 **Next — slice 1d:** app shell + real auth UI in Next.js (login/signup forms calling these
 endpoints), protected dashboard route, and the header/nav from PLANNING §20.
+
+---
+
+## Slice 1d — App Shell & Auth UI (completed 2026-07-13)
+
+**Delivered (Next.js frontend, wired to the 1c auth API):**
+- Typed API client (`lib/api.ts`) with structured error handling incl. network failures.
+- Auth context (`lib/auth-context.tsx`): tokens in localStorage, session bootstrap on load,
+  automatic one-shot refresh on a 401. Same `useAuth()` shape will hold when Auth.js cookies
+  replace localStorage.
+- Pages: `/login`, `/signup` (shared `AuthForm`), `/dashboard` (protected), and a
+  session-aware `/` that redirects to dashboard or login.
+- Header/nav (PLANNING §20): logo → dashboard, levels/practice links, account dropdown with
+  profile/settings/logout, and an **admin item gated on the `admin_panel` capability**.
+- `Protected` route guard: gentle loading state while auth bootstraps, redirect to /login if
+  unauthenticated.
+- Dashboard widget shells in the Terraza style (welcome, progression, next lesson, reviews,
+  streak, forecast) with honest empty states — no fake progress data.
+- Terraza UI primitives (Card/Input/Button/Label/FormError) all derived from the design tokens.
+- Fonts made resilient: `display:"swap"` + system fallbacks so a Google Fonts hiccup never
+  blocks the build or first paint.
+
+**Docker: the full stack now runs with one command.**
+- API `entrypoint.sh` runs `alembic upgrade head` + seed before starting uvicorn, so a fresh
+  `docker compose up` yields a migrated, seeded database automatically.
+- `docker-compose.yml` passes `NEXT_PUBLIC_API_URL` to the web container; runtime API image is
+  slimmed (no test toolchain).
+
+**Tests:** frontend 3 passing (API client success/401/network), backend still 45. Production
+`next build` verified (all 5 routes compile). typecheck + ruff clean.
+
+**Next — slice 1e:** admin skeleton + CSV import UI + user/role management, then Phase 1 closes.

@@ -28,11 +28,14 @@ services:
       db: { condition: service_healthy }
       redis: { condition: service_healthy }
     volumes: ["./apps/api:/app"]
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    # entrypoint runs migrations + seed, then starts uvicorn
+    command: ["./entrypoint.sh"]
 
   web:
     build: ./apps/web
-    env_file: .env
+    environment:
+      # The browser calls the API directly on the host-mapped port.
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
     ports: ["3000:3000"]
     depends_on: [api]
     volumes: ["./apps/web:/app", "/app/node_modules"]
