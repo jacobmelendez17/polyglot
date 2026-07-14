@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     auth_jwks_url: str = ""
     auth_audience: str = "polyglot-api"
     auth_issuer: str = "polyglot-web"
+    # HS256 signing secret for MVP access tokens. MUST be overridden in prod
+    # via the AUTH_SECRET env var; the default is for local dev only.
+    auth_secret: str = "dev-only-change-me-in-production"
 
     @property
     def cors_origins(self) -> list[str]:

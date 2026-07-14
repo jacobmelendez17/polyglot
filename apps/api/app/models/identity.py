@@ -4,7 +4,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, Enum, Integer, Numeric, String, Text
+from sqlalchemy import BigInteger, Boolean, DateTime, Enum, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import GUID, Base, TimestampMixin, fk, pk
@@ -20,6 +20,8 @@ class User(Base, TimestampMixin):
     id: Mapped[uuid.UUID] = pk()
     auth_provider_id: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
     email: Mapped[str] = mapped_column(String(320), unique=True, nullable=False)
+    # Nullable: users created via external identity (Auth.js/OAuth) may have no local password.
+    password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     email_verified_at: Mapped[datetime | None]
     role: Mapped[UserRole] = mapped_column(Enum(UserRole, name="user_role"), default=UserRole.user)
     status: Mapped[UserStatus] = mapped_column(
@@ -37,8 +39,8 @@ class AuthSession(Base, TimestampMixin):
     refresh_token_hash: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
     user_agent: Mapped[str | None] = mapped_column(String(400))
     ip_hash: Mapped[str | None] = mapped_column(String(128))
-    expires_at: Mapped[datetime]
-    revoked_at: Mapped[datetime | None]
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     rotated_from_session_id: Mapped[uuid.UUID | None] = mapped_column(GUID(), nullable=True)
 
 

@@ -16,6 +16,7 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.auth.passwords import hash_password
 from app.db.session import SessionLocal
 from app.models.curriculum import Language
 from app.models.enums import UserRole
@@ -76,7 +77,9 @@ def _seed_owner(db: Session) -> None:
     exists = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
     if exists is not None:
         return
+    owner_pw = os.environ.get("SEED_OWNER_PASSWORD", "changeme-owner-1")
     user = User(id=uuid.uuid4(), email=email, role=UserRole.owner)
+    user.password_hash = hash_password(owner_pw)
     db.add(user)
     db.flush()
     db.add(Profile(user_id=user.id, display_name="Owner"))

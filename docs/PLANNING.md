@@ -585,3 +585,38 @@ finishes installing: `cd apps/api && pip install ".[dev]" && pytest`.
 
 **Next — slice 1c:** Auth.js in Next.js issuing short-lived JWTs, FastAPI JWKS
 verification, refresh-session rotation, and the capability/role authorization layer.
+
+---
+
+## Slice 1c — Authentication & Authorization (completed 2026-07-13)
+
+**Delivered (backend-first; Auth.js in Next.js layers on top later):**
+- Password hashing: PBKDF2-HMAC-SHA256 (stdlib, no external dep), salted, self-describing
+  format with opportunistic rehash. Constant-time verify.
+- Tokens: short-lived HS256 access JWT (10 min) verified at one point (`verify_access_token`
+  enforces sig/exp/aud/iss + 30s skew); opaque 256-bit refresh token, only its SHA-256 hash
+  stored server-side.
+- Sessions: refresh rotation on every use; reuse of a rotated/revoked token revokes the whole
+  session chain (theft detection). Logout + logout-all revoke server-side, so a stolen access
+  token dies within its short TTL because the session check fails.
+- Capability-based authorization (`app/auth/capabilities.py`): explicit, NON-hierarchical
+  role→capability map. content_editor edits curriculum but can't manage users; moderator
+  moderates forums but can't edit curriculum; only owner approves permanent deletes.
+- Endpoints: `POST /api/v1/auth/{signup,login,refresh,logout}` + `GET /api/v1/auth/me`.
+  Uniform "invalid email or password" (no user enumeration); consistent error shape.
+- FastAPI deps: `get_current_user` (bearer → verify → session-alive → user) and
+  `require(capability)` gate returning 403.
+- Migration `99fd287fec7c`: adds `users.password_hash` + makes session times tz-aware.
+  Verified reversible; zero drift.
+
+**Tests: 45 passing** (was 19). New: password hashing, capability matrix, token
+sig/exp/aud round-trips, and full DB+API flow — signup, duplicate rejection, wrong-password
+401, refresh rotation, **reuse-detection chain revocation**, logout killing access, and
+capability gates (user forbidden / content_editor allowed).
+
+**Security note:** MVP uses HS256 with a server secret (`AUTH_SECRET` env var; the default is
+a dev placeholder and MUST be overridden in production). The plan's RS256/JWKS path (Auth.js as
+issuer) swaps in at `verify_access_token` without touching call sites.
+
+**Next — slice 1d:** app shell + real auth UI in Next.js (login/signup forms calling these
+endpoints), protected dashboard route, and the header/nav from PLANNING §20.

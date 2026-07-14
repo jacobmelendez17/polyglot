@@ -8,3 +8,6 @@ __pycache__/
 .mypy_cache/
 coverage/
 dist/
+
+build/
+.python-version

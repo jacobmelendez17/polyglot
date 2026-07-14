@@ -43,5 +43,5 @@ docs/           PLANNING.md — architecture, schema, SRS spec, phases
 
 ## Status
 
-Phase 1, slice 1b (database schema, reversible migration, curriculum importer) — see `docs/PLANNING.md` for the full
+Phase 1, slice 1c (authentication, sessions, role/capability authorization) — see `docs/PLANNING.md` for the full
 phased roadmap, definition of done, and open decisions.
