@@ -16,6 +16,8 @@ function AdminInner() {
   const router = useRouter();
   const canManageUsers = user?.capabilities.includes("user_manage");
   const canImport = user?.capabilities.includes("content_import");
+  // Bumped whenever an import finishes, so the content list re-fetches.
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // If a signed-in user without admin access lands here, send them home.
   useEffect(() => {
@@ -28,8 +30,8 @@ function AdminInner() {
       <main className="mx-auto max-w-5xl px-4 py-8">
         <h1 className="mb-6 text-2xl lowercase tracking-cozy">admin</h1>
         <div className="flex flex-col gap-6">
-          {canImport && <ImportSection />}
-          <ContentSection />
+          {canImport && <ImportSection onImported={() => setRefreshKey((k) => k + 1)} />}
+          <ContentSection refreshKey={refreshKey} />
           {canManageUsers && <UsersSection />}
         </div>
       </main>
@@ -37,7 +39,7 @@ function AdminInner() {
   );
 }
 
-function ImportSection() {
+function ImportSection({ onImported }: { onImported: () => void }) {
   const [result, setResult] = useState<ImportResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,6 +56,7 @@ function ImportSection() {
     try {
       const r = await uploadCsv(token, kind, file);
       setResult(r);
+      onImported();  // tell the content list to reload
     } catch (err) {
       setError(err instanceof Error ? err.message : "Import failed.");
     } finally {
@@ -134,12 +137,13 @@ function ImportSection() {
   );
 }
 
-function ContentSection() {
+function ContentSection({ refreshKey }: { refreshKey: number }) {
   const [tab, setTab] = useState<"vocabulary" | "grammar">("vocabulary");
   const [items, setItems] = useState<ContentItem[]>([]);
   const [total, setTotal] = useState(0);
   const [level, setLevel] = useState<number>(1);
   const [loading, setLoading] = useState(false);
+  const [publishingAll, setPublishingAll] = useState(false);
 
   const load = useCallback(async () => {
     const token = getStoredToken();
@@ -156,13 +160,31 @@ function ContentSection() {
     }
   }, [tab, level]);
 
-  useEffect(() => { load(); }, [load]);
+  // Reload when the tab/level changes OR after an import (refreshKey bump).
+  useEffect(() => { load(); }, [load, refreshKey]);
 
   async function publish(id: string) {
     const token = getStoredToken();
     if (!token || tab !== "vocabulary") return;
     await api.setVocabStatus(token, id, "published");
     load();
+  }
+
+  async function publishAll() {
+    const token = getStoredToken();
+    if (!token || tab !== "vocabulary") return;
+    const drafts = items.filter((i) => i.status !== "published");
+    if (drafts.length === 0) return;
+    setPublishingAll(true);
+    try {
+      // Publish sequentially so the server audit-logs each change.
+      for (const it of drafts) {
+        await api.setVocabStatus(token, it.id, "published");
+      }
+      await load();
+    } finally {
+      setPublishingAll(false);
+    }
   }
 
   return (
@@ -196,6 +218,15 @@ function ContentSection() {
           ))}
         </select>
         <span className="text-terraza-soft">{total} items</span>
+        {tab === "vocabulary" && items.some((i) => i.status !== "published") && (
+          <button
+            onClick={publishAll}
+            disabled={publishingAll}
+            className="ml-auto rounded-full bg-terraza-green px-4 py-1 text-sm tracking-cozy disabled:opacity-50"
+          >
+            {publishingAll ? "publishing…" : "publish all in level"}
+          </button>
+        )}
       </div>
 
       {loading ? (

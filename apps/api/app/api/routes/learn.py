@@ -22,6 +22,7 @@ from app.api.routes.schemas import (
     LevelOut,
     QueuePromptOut,
     SessionOut,
+    SrsStageCount,
     StatsOut,
     SubmitAnswerOut,
     SubmitAnswerRequest,
@@ -248,17 +249,68 @@ def stats(db: Session = Depends(get_db), user: User = Depends(get_current_user))
     fluent = sum(1 for p in rows if p.srs_stage >= int(srs.Stage.fluent))
     leeches = sum(1 for p in rows if p.leech_state in (LeechState.leech, LeechState.critical))
 
+    # Lessons available = published items not yet started by this user.
+    started_ids = {(p.item_type.value, str(p.item_id)) for p in rows}
+    lang = db.execute(select(Language).where(Language.code == "es-MX")).scalar_one_or_none()
+    lessons_available = 0
+    if lang is not None:
+        pub_vocab = db.execute(
+            select(VocabularyItem.id).where(
+                VocabularyItem.language_id == lang.id,
+                VocabularyItem.status == ContentStatus.published,
+                VocabularyItem.deleted_at.is_(None),
+            )
+        ).scalars().all()
+        pub_grammar = db.execute(
+            select(GrammarPoint.id).where(
+                GrammarPoint.language_id == lang.id,
+                GrammarPoint.status == ContentStatus.published,
+                GrammarPoint.deleted_at.is_(None),
+            )
+        ).scalars().all()
+        lessons_available = (
+            sum(1 for i in pub_vocab if ("vocabulary", str(i)) not in started_ids)
+            + sum(1 for i in pub_grammar if ("grammar", str(i)) not in started_ids)
+        )
+
+    # Per-stage counts + WaniKani-style groups.
+    stage_counts_map: dict[int, int] = {s: 0 for s in range(1, 10)}
+    for p in rows:
+        stage_counts_map[p.srs_stage] = stage_counts_map.get(p.srs_stage, 0) + 1
+    stage_counts = [
+        SrsStageCount(stage=s, name=srs.stage_name(s), count=stage_counts_map[s])
+        for s in range(1, 10)
+    ]
+    # Groups: Beginner (1-4), Familiar (5-6), Intermediate (7), Advanced (8), Fluent (9)
+    stage_group_counts = {
+        "beginner": sum(stage_counts_map[s] for s in (1, 2, 3, 4)),
+        "familiar": sum(stage_counts_map[s] for s in (5, 6)),
+        "intermediate": stage_counts_map[7],
+        "advanced": stage_counts_map[8],
+        "fluent": stage_counts_map[9],
+    }
+
+    # 7-slot forecast: today, then the next 6 days.
+    labels = ["today", "mañana", "+2d", "+3d", "+4d", "+5d", "+6d"]
     buckets: list[ForecastBucket] = []
-    for offset, label in ((0, "today"), (1, "mañana"), (2, "+2 días")):
-        start = now + dt.timedelta(days=offset)
-        end = start + dt.timedelta(days=1)
-        count = sum(
-            1 for p in rows
-            if p.next_review_at and start <= p.next_review_at < end
-        ) if offset else due
+    for offset, label in enumerate(labels):
+        if offset == 0:
+            count = due
+        else:
+            start = now + dt.timedelta(days=offset)
+            end = start + dt.timedelta(days=1)
+            count = sum(1 for p in rows if p.next_review_at and start <= p.next_review_at < end)
         buckets.append(ForecastBucket(label=label, count=count))
 
+    # When is the very next review, if none are due right now?
+    upcoming = [p.next_review_at for p in rows
+                if p.next_review_at and p.next_review_at > now
+                and p.srs_stage < int(srs.Stage.fluent)]
+    next_review = min(upcoming).isoformat() if upcoming and due == 0 else None
+
     return StatsOut(
-        xp_total=int(xp_total), reviews_due=due, items_learned=len(rows),
-        items_fluent=fluent, leeches=leeches, forecast=buckets,
+        xp_total=int(xp_total), reviews_due=due, lessons_available=lessons_available,
+        items_learned=len(rows), items_fluent=fluent, leeches=leeches,
+        stage_group_counts=stage_group_counts, stage_counts=stage_counts,
+        forecast=buckets, next_review_at=next_review,
     )

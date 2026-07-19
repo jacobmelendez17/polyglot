@@ -6,114 +6,152 @@ import { Card } from "./ui";
 import { useAuth } from "@/lib/auth-context";
 import { learn, type Stats } from "@/lib/learn-api";
 
-function WidgetLabel({ children }: { children: React.ReactNode }) {
-  return <div className="mb-3 text-xs tracking-label text-terraza-soft">{children}</div>;
-}
+// ---- shared stats hook -------------------------------------------------
+// One fetch, shared across widgets via a tiny module-level cache so the six
+// widgets don't each hit the endpoint.
+let _cache: { stats: Stats | null; at: number } | null = null;
+let _inflight: Promise<Stats> | null = null;
 
-function Empty({ children }: { children: React.ReactNode }) {
-  return <p className="py-6 text-center font-empty italic text-terraza-soft">{children}</p>;
-}
-
-// Shared stats fetch. Each widget calls this; React batches the renders and the
-// browser caches the request, so we don't hammer the endpoint.
 function useStats() {
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<Stats | null>(_cache?.stats ?? null);
+  const [loading, setLoading] = useState(!_cache);
   useEffect(() => {
     let active = true;
-    learn.stats()
-      .then((s) => { if (active) setStats(s); })
-      .catch(() => { if (active) setStats(null); })
+    const fresh = _cache && Date.now() - _cache.at < 5000;
+    if (fresh) { setStats(_cache!.stats); setLoading(false); return; }
+    _inflight = _inflight ?? learn.stats();
+    _inflight
+      .then((s) => { _cache = { stats: s, at: Date.now() }; _inflight = null;
+        if (active) { setStats(s); } })
+      .catch(() => { _inflight = null; if (active) setStats(null); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, []);
   return { stats, loading };
 }
 
+function WidgetLabel({ children }: { children: React.ReactNode }) {
+  return <div className="mb-2 text-xs tracking-label text-terraza-soft">{children}</div>;
+}
+
+// ---- the hero: big lesson + review action buttons ----------------------
+// This is the WaniKani/BunPro/KaniCompanion pattern — two prominent, count-bearing
+// calls to action that are the first thing you see and the main thing you click.
+
+export function ActionButtons() {
+  const { stats, loading } = useStats();
+  const lessons = stats?.lessons_available ?? 0;
+  const reviews = stats?.reviews_due ?? 0;
+
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <ActionButton
+        href="/levels" kind="lessons" count={lessons} loading={loading}
+        title="lessons" sub="learn new words & grammar"
+        bg="bg-terraza-pink" ready="ready to learn"
+      />
+      <ActionButton
+        href="/reviews" kind="reviews" count={reviews} loading={loading}
+        title="reviews" sub="strengthen what you know"
+        bg="bg-terraza-accent" ready="waiting for you"
+        emphasize
+      />
+    </div>
+  );
+}
+
+function ActionButton({
+  href, count, loading, title, sub, bg, ready, emphasize,
+}: {
+  href: string; kind: string; count: number; loading: boolean;
+  title: string; sub: string; bg: string; ready: string; emphasize?: boolean;
+}) {
+  const disabled = !loading && count === 0;
+  const inner = (
+    <div
+      className={`relative flex h-full min-h-[140px] flex-col justify-between overflow-hidden rounded-card p-6 transition-transform ${
+        disabled ? "opacity-70" : "hover:-translate-y-1"
+      } ${emphasize ? "text-terraza-accentInk" : "text-terraza-ink"} ${bg}`}
+      style={{ boxShadow: "0 3px 0 var(--lg-dash)" }}
+    >
+      <div className="flex items-baseline gap-3">
+        <span className="text-6xl lowercase tracking-cozy leading-none">
+          {loading ? "·" : count}
+        </span>
+        <span className="text-lg lowercase tracking-cozy">{title}</span>
+      </div>
+      <div>
+        <p className="text-sm opacity-80">{sub}</p>
+        <p className="mt-2 text-xs tracking-label">
+          {loading ? "…" : disabled ? "nothing right now ~" : ready.toUpperCase()}
+        </p>
+      </div>
+      {/* subtle oversized glyph in the corner, WaniKani-ish flourish */}
+      <span className="pointer-events-none absolute -right-4 -top-6 select-none text-[7rem] opacity-10">
+        ✦
+      </span>
+    </div>
+  );
+  if (disabled) return inner;
+  return <Link href={href} className="block">{inner}</Link>;
+}
+
+// ---- SRS progression: the signature WaniKani breakdown -----------------
+
+const GROUP_META: { key: string; label: string; color: string }[] = [
+  { key: "beginner", label: "beginner", color: "var(--lg-pink)" },
+  { key: "familiar", label: "familiar", color: "var(--lg-gold)" },
+  { key: "intermediate", label: "intermediate", color: "var(--lg-accent)" },
+  { key: "advanced", label: "advanced", color: "var(--lg-green)" },
+  { key: "fluent", label: "fluent", color: "var(--lg-ink)" },
+];
+
 export function ProgressionWidget() {
   const { stats, loading } = useStats();
-  const learned = stats?.items_learned ?? 0;
-  const fluent = stats?.items_fluent ?? 0;
-  const pct = learned > 0 ? Math.round((fluent / learned) * 100) : 0;
+  const groups = stats?.stage_group_counts ?? {};
+  const total = Object.values(groups).reduce((a, b) => a + b, 0);
+
   return (
     <Card>
-      <WidgetLabel>YOUR PROGRESS</WidgetLabel>
+      <WidgetLabel>PROGRESSION</WidgetLabel>
       {loading ? (
-        <Empty>un momento ~</Empty>
-      ) : learned === 0 ? (
-        <Empty>your journey starts with your first lesson ~</Empty>
+        <p className="py-4 font-empty italic text-terraza-soft">un momento ~</p>
+      ) : total === 0 ? (
+        <p className="py-4 font-empty italic text-terraza-soft">
+          your journey starts with your first lesson ~
+        </p>
       ) : (
         <>
-          <p className="text-lg lowercase tracking-cozy">
-            {learned} items learned · {fluent} fluent
-          </p>
-          <div className="mt-3 h-3 overflow-hidden rounded-full bg-terraza-bg">
-            <div className="h-full rounded-full bg-terraza-accent transition-all"
-                 style={{ width: `${pct}%` }} />
+          {/* stacked proportion bar */}
+          <div className="flex h-4 overflow-hidden rounded-full">
+            {GROUP_META.map((g) => {
+              const n = groups[g.key] ?? 0;
+              if (n === 0) return null;
+              return (
+                <div key={g.key} style={{ width: `${(n / total) * 100}%`, background: g.color }}
+                     title={`${g.label}: ${n}`} />
+              );
+            })}
           </div>
-          <p className="mt-2 text-sm text-terraza-soft">{pct}% to fluency on learned items</p>
+          {/* per-group counts */}
+          <div className="mt-4 grid grid-cols-5 gap-2 text-center">
+            {GROUP_META.map((g) => (
+              <div key={g.key}>
+                <div className="mx-auto mb-1 h-2 w-2 rounded-full" style={{ background: g.color }} />
+                <p className="text-xl lowercase tracking-cozy">{groups[g.key] ?? 0}</p>
+                <p className="text-[10px] tracking-label text-terraza-soft">
+                  {g.label.toUpperCase()}
+                </p>
+              </div>
+            ))}
+          </div>
         </>
       )}
     </Card>
   );
 }
 
-export function ReviewsWidget() {
-  const { stats, loading } = useStats();
-  const due = stats?.reviews_due ?? 0;
-  return (
-    <Card>
-      <WidgetLabel>REVIEWS</WidgetLabel>
-      {loading ? (
-        <Empty>un momento ~</Empty>
-      ) : due === 0 ? (
-        <Empty>nothing due right now ~<br />
-          <span className="text-sm">reviews appear on a schedule</span></Empty>
-      ) : (
-        <div className="text-center">
-          <p className="text-4xl lowercase tracking-cozy">{due}</p>
-          <p className="mt-1 text-sm text-terraza-soft">
-            {due === 1 ? "item" : "items"} ready to review
-          </p>
-          <Link href="/reviews"
-            className="mt-4 inline-block rounded-full bg-terraza-accent px-5 py-2 tracking-cozy text-terraza-accentInk">
-            start reviewing →
-          </Link>
-        </div>
-      )}
-    </Card>
-  );
-}
-
-export function LessonWidget() {
-  return (
-    <Card>
-      <WidgetLabel>LESSONS</WidgetLabel>
-      <p className="text-terraza-soft">
-        learn new words and grammar, then they flow into your reviews.
-      </p>
-      <Link href="/levels"
-        className="mt-4 inline-block rounded-full bg-terraza-accent px-5 py-2 tracking-cozy text-terraza-accentInk">
-        browse levels →
-      </Link>
-    </Card>
-  );
-}
-
-export function XpWidget() {
-  const { stats, loading } = useStats();
-  const xp = stats?.xp_total ?? 0;
-  const leeches = stats?.leeches ?? 0;
-  return (
-    <Card>
-      <WidgetLabel>XP</WidgetLabel>
-      <p className="text-3xl lowercase tracking-cozy">{loading ? "…" : xp.toLocaleString()}</p>
-      <p className="mt-1 text-sm text-terraza-soft">
-        {leeches > 0 ? `${leeches} tricky ${leeches === 1 ? "item" : "items"} to watch` : "total experience earned"}
-      </p>
-    </Card>
-  );
-}
+// ---- forecast: 7-day bar row -------------------------------------------
 
 export function ForecastWidget() {
   const { stats, loading } = useStats();
@@ -121,38 +159,93 @@ export function ForecastWidget() {
   const max = Math.max(1, ...forecast.map((f) => f.count));
   return (
     <Card>
-      <WidgetLabel>FORECAST</WidgetLabel>
+      <WidgetLabel>REVIEW FORECAST</WidgetLabel>
       {loading ? (
-        <Empty>un momento ~</Empty>
+        <p className="py-4 font-empty italic text-terraza-soft">un momento ~</p>
       ) : (
-        forecast.map((r) => (
-          <div key={r.label} className="mb-2 flex items-center gap-3 text-sm">
-            <span className="w-16 text-terraza-soft">{r.label}</span>
-            <div className="h-3 flex-1 overflow-hidden rounded-full bg-terraza-bg">
-              <div className="h-full rounded-full bg-terraza-green transition-all"
-                   style={{ width: `${(r.count / max) * 100}%` }} />
+        <div className="flex items-end justify-between gap-2 pt-2" style={{ height: 120 }}>
+          {forecast.map((r) => (
+            <div key={r.label} className="flex flex-1 flex-col items-center gap-1">
+              <span className="text-xs text-terraza-soft">{r.count || ""}</span>
+              <div className="flex w-full flex-1 items-end">
+                <div
+                  className="w-full rounded-t-[6px] bg-terraza-accent transition-all"
+                  style={{ height: `${(r.count / max) * 100}%`, minHeight: r.count ? 4 : 0 }}
+                />
+              </div>
+              <span className="text-[10px] tracking-label text-terraza-soft">{r.label}</span>
             </div>
-            <span className="w-6 text-right text-terraza-soft">{r.count}</span>
-          </div>
-        ))
+          ))}
+        </div>
       )}
     </Card>
   );
 }
 
+// ---- small stat tiles --------------------------------------------------
+
+export function XpWidget() {
+  const { stats, loading } = useStats();
+  const xp = stats?.xp_total ?? 0;
+  return (
+    <Card>
+      <WidgetLabel>XP</WidgetLabel>
+      <p className="text-3xl lowercase tracking-cozy">{loading ? "…" : xp.toLocaleString()}</p>
+      <p className="mt-1 text-sm text-terraza-soft">total experience</p>
+    </Card>
+  );
+}
+
+export function FluentWidget() {
+  const { stats, loading } = useStats();
+  const fluent = stats?.items_fluent ?? 0;
+  const learned = stats?.items_learned ?? 0;
+  return (
+    <Card>
+      <WidgetLabel>FLUENT</WidgetLabel>
+      <p className="text-3xl lowercase tracking-cozy">{loading ? "…" : fluent}</p>
+      <p className="mt-1 text-sm text-terraza-soft">
+        of {learned} learned {learned > 0 ? `· ${Math.round((fluent / learned) * 100)}%` : ""}
+      </p>
+    </Card>
+  );
+}
+
+export function LeechWidget() {
+  const { stats, loading } = useStats();
+  const leeches = stats?.leeches ?? 0;
+  return (
+    <Card>
+      <WidgetLabel>TRICKY ITEMS</WidgetLabel>
+      <p className="text-3xl lowercase tracking-cozy">{loading ? "…" : leeches}</p>
+      <p className="mt-1 text-sm text-terraza-soft">
+        {leeches > 0 ? "items that keep tripping you up" : "nothing giving you trouble ~"}
+      </p>
+    </Card>
+  );
+}
+
+// ---- welcome banner ----------------------------------------------------
+
 export function WelcomeWidget() {
   const { user } = useAuth();
-  // The name the user chose at signup (falls back to their email handle).
+  const { stats } = useStats();
   const name = user?.name?.trim() || user?.email?.split("@")[0] || "amigo";
+  const due = stats?.reviews_due ?? 0;
+  const lessons = stats?.lessons_available ?? 0;
+
+  const line =
+    due > 0 ? `you have ${due} ${due === 1 ? "review" : "reviews"} waiting.`
+    : lessons > 0 ? `ready to learn something new?`
+    : `all caught up — nicely done.`;
+
   return (
-    <Card className="md:col-span-2">
+    <Card>
       <WidgetLabel>¡HOLA!</WidgetLabel>
       <p className="text-2xl lowercase tracking-cozy">
         Welcome back, {name} <span className="text-terraza-accent">✦</span>
       </p>
-      <p className="mt-2 text-terraza-soft">
-        pick up where you left off — reviews first, then a new lesson.
-      </p>
+      <p className="mt-2 text-terraza-soft">{line}</p>
     </Card>
   );
 }

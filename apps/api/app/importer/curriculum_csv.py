@@ -176,13 +176,11 @@ def parse_vocabulary(csv_text: str) -> tuple[list[ParsedVocab], ImportReport]:
         if batch is None:
             report.issues.append(Issue(Severity.error, idx, "Batch", "missing/invalid batch", term))
 
-        # Enrichment warnings (imported anyway, as draft).
-        for col, label in (("Pronunciation", "pronunciation"), ("IPA", "IPA"),
-                           ("PoS", "part of speech"), ("Meaning", "meaning")):
-            if not _clean(raw.get(col)):
-                report.issues.append(
-                    Issue(Severity.warning, idx, col, f"missing {label}", term)
-                )
+        # Enrichment fields (pronunciation, IPA, part of speech, meaning) are
+        # OPTIONAL: many rows legitimately omit them, so a blank value is not a
+        # problem worth flagging. They import as-is; an editor can fill them in
+        # later. Only the true requirements below (Translation, Level, Batch)
+        # produce errors.
 
         # Flag suspect translations (never auto-fix).
         if translation:

@@ -743,3 +743,55 @@ the worked-example numbers, we flip two values in `domain/xp.py`. Flagging for y
 
 **Next — Phase 3:** practice features (listening, translation, fill-in-the-blank,
 conjugation, weak-item/leech practice).
+
+---
+
+## Slice 2.1 — Curriculum seed script + optional enrichment fields (2026-07-19)
+
+**Curriculum seed script** (`app/db/seed_curriculum.py`): imports the bundled Spanish
+CSVs (now in `app/db/seed_data/`) AND publishes them, so lessons/reviews are immediately
+playable — unlike the admin import which loads drafts for review. Idempotent; `--force`
+overwrites editor-touched rows, `--drafts-only` skips publishing. Verified end-to-end:
+465 vocab + 59 grammar published, 10 modules published, 4 lessons form at Level 1.
+  Run: `docker compose exec api python -m app.db.seed_curriculum`
+
+**Enrichment fields are now optional.** Pronunciation, IPA, part-of-speech, and meaning
+no longer emit a warning when blank — many rows legitimately omit them. Vocab import
+warnings dropped from ~1,847 to 5 (only real signal now: 2 merged duplicates + 3 structural
+notes about Levels 1 and 6). The genuine requirements (Translation, Level, Batch) still
+error. `nosotros` (row 41) still correctly errors as it has no translation.
+
+**Admin UI fixes:** the content list now refreshes automatically after an import (was
+showing a stale "0 items"), and a "publish all in level" button publishes a whole level's
+drafts at once instead of one at a time.
+
+All 140 backend tests still pass; frontend builds.
+
+---
+
+## Slice 3 — WaniKani-style dashboard redesign (2026-07-19)
+
+Reworked the dashboard around the lesson/review action pattern used by WaniKani,
+BunPro, and KaniCompanion.
+
+**Backend (`/me/stats` extended, no migration — all computed):**
+- `lessons_available`: published items the user hasn't started yet.
+- `stage_group_counts`: WaniKani-style SRS buckets (beginner 1-4 / familiar 5-6 /
+  intermediate 7 / advanced 8 / fluent 9).
+- `stage_counts`: per-stage counts (all 9 stages).
+- 7-day `forecast` (was 3) + `next_review_at` when nothing is due now.
+
+**Frontend:**
+- Two large count-bearing action buttons (lessons + reviews) as the dashboard hero —
+  the primary calls to action, styled in blush/teal with an oversized glyph flourish.
+- Mixed-size widget grid (4-col): full-width welcome, 2-col progression breakdown with a
+  stacked SRS proportion bar, small XP/fluent tiles, 2-col review-forecast bar chart,
+  and a tricky-items tile. Cards fill cell height so rows align.
+- Shared stats hook with a short module-level cache so the widgets make one request.
+- Header nav already points at /levels and /reviews.
+
+**Tests: 141 backend** (added lessons_available coverage) + 3 frontend. Build clean.
+
+**Note:** kept the Terraza visual language (the app's established identity) but adopted
+WaniKani's information architecture. A draggable/customizable widget layout (WaniKani's
+newest feature) is deferred — this slice delivers the fixed varied-size layout.

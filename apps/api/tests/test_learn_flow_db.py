@@ -254,3 +254,23 @@ def test_stats_reflect_progress(client, db, learner):
     assert s["items_learned"] > 0
     assert s["reviews_due"] > 0
     assert s["xp_total"] > 0
+    # WaniKani-style fields
+    assert "stage_group_counts" in s
+    assert set(s["stage_group_counts"].keys()) == {
+        "beginner", "familiar", "intermediate", "advanced", "fluent",
+    }
+    assert len(s["stage_counts"]) == 9           # one per SRS stage
+    assert len(s["forecast"]) == 7               # today + 6 days
+    # everything just unlocked sits at Beginner, so lessons_available is 0 here
+    assert s["lessons_available"] == 0
+    # all learned items are at stage 1 (beginner group)
+    assert s["stage_group_counts"]["beginner"] == s["items_learned"]
+
+
+def test_lessons_available_counts_unstarted_published_items(client, db, learner):
+    # Before completing any lesson, all published items are "available to learn".
+    r = client.get("/api/v1/me/stats", headers=learner["headers"])
+    s = r.json()
+    # learner fixture published 4 vocab + 1 grammar, none started yet
+    assert s["lessons_available"] == 5
+    assert s["items_learned"] == 0

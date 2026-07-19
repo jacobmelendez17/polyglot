@@ -31,9 +31,12 @@ export interface AnswerResult {
   answer_id?: string | null; message?: string | null;
 }
 export interface Stats {
-  xp_total: number; reviews_due: number; items_learned: number;
-  items_fluent: number; leeches: number;
+  xp_total: number; reviews_due: number; lessons_available: number;
+  items_learned: number; items_fluent: number; leeches: number;
+  stage_group_counts: Record<string, number>;
+  stage_counts: { stage: number; name: string; count: number }[];
   forecast: { label: string; count: number }[];
+  next_review_at: string | null;
 }
 
 async function req<T>(path: string, init: RequestInit = {}): Promise<T> {

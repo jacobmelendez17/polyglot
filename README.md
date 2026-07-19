@@ -43,5 +43,5 @@ docs/           PLANNING.md — architecture, schema, SRS spec, phases
 
 ## Status
 
-Phase 2 COMPLETE (lesson flow, SRS engine, answer checking, review sessions) — see `docs/PLANNING.md` for the full
+Phase 2 COMPLETE + WaniKani-style dashboard (lesson/review buttons, SRS progression, forecast)
 phased roadmap, definition of done, and open decisions.

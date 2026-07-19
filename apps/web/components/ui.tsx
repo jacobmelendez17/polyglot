@@ -9,7 +9,7 @@ import { forwardRef } from "react";
 export function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
     <div
-      className={`rounded-card border border-terraza-dash bg-terraza-card p-6 ${className}`}
+      className={`h-full rounded-card border border-terraza-dash bg-terraza-card p-6 ${className}`}
       style={{ boxShadow: "0 2px 0 var(--lg-dash)" }}
     >
       {children}

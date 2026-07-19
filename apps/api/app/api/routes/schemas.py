@@ -175,10 +175,21 @@ class ForecastBucket(BaseModel):
     count: int
 
 
+class SrsStageCount(BaseModel):
+    stage: int
+    name: str
+    count: int
+
+
 class StatsOut(BaseModel):
     xp_total: int
     reviews_due: int
+    lessons_available: int
     items_learned: int
     items_fluent: int
     leeches: int
+    # WaniKani-style grouped SRS buckets for the progression widget.
+    stage_group_counts: dict[str, int]
+    stage_counts: list[SrsStageCount]
     forecast: list[ForecastBucket]
+    next_review_at: str | None = None
