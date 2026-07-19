@@ -12,7 +12,9 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const router = useRouter();
   const { login, signup } = useAuth();
   const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
   const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -22,14 +24,24 @@ export function AuthForm({ mode }: { mode: Mode }) {
     e.preventDefault();
     setError(null);
 
-    if (isSignup && password.length < 8) {
-      setError("Password must be at least 8 characters.");
-      return;
+    if (isSignup) {
+      if (name.trim().length === 0) {
+        setError("Please enter your name.");
+        return;
+      }
+      if (password.length < 8) {
+        setError("Password must be at least 8 characters.");
+        return;
+      }
+      if (password !== confirm) {
+        setError("Passwords don't match.");
+        return;
+      }
     }
 
     setSubmitting(true);
     try {
-      if (isSignup) await signup(email, password);
+      if (isSignup) await signup(email, name.trim(), password);
       else await login(email, password);
       router.push("/dashboard");
     } catch (err) {
@@ -55,6 +67,16 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
       <Card>
         <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
+          {isSignup && (
+            <div>
+              <Label htmlFor="name">name</Label>
+              <Input
+                id="name" type="text" autoComplete="name" required
+                value={name} onChange={(e) => setName(e.target.value)}
+                placeholder="what should we call you?"
+              />
+            </div>
+          )}
           <div>
             <Label htmlFor="email">email</Label>
             <Input
@@ -72,6 +94,16 @@ export function AuthForm({ mode }: { mode: Mode }) {
               placeholder={isSignup ? "at least 8 characters" : "your password"}
             />
           </div>
+          {isSignup && (
+            <div>
+              <Label htmlFor="confirm">confirm password</Label>
+              <Input
+                id="confirm" type="password" autoComplete="new-password" required
+                value={confirm} onChange={(e) => setConfirm(e.target.value)}
+                placeholder="type it again"
+              />
+            </div>
+          )}
 
           <FormError message={error} />
 
@@ -81,13 +113,23 @@ export function AuthForm({ mode }: { mode: Mode }) {
         </form>
       </Card>
 
-      <p className="text-center text-sm text-terraza-soft">
-        {isSignup ? (
-          <>already have an account? <TextLink href="/login">sign in</TextLink></>
-        ) : (
-          <>new here? <TextLink href="/signup">create an account</TextLink></>
+      <div className="flex flex-col items-center gap-2 text-center text-sm text-terraza-soft">
+        <p>
+          {isSignup ? (
+            <>already have an account? <TextLink href="/login">sign in</TextLink></>
+          ) : (
+            <>new here? <TextLink href="/signup">create an account</TextLink></>
+          )}
+        </p>
+        {!isSignup && (
+          <p>
+            <TextLink href="/reset-password">forgot your password?</TextLink>
+          </p>
         )}
-      </p>
+        <p>
+          <TextLink href="/">← back to home</TextLink>
+        </p>
+      </div>
     </main>
   );
 }

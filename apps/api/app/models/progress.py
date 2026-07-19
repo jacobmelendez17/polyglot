@@ -111,7 +111,8 @@ class ReviewAnswer(Base, TimestampMixin):
     item_type: Mapped[ItemType] = mapped_column(Enum(ItemType, name="item_type", create_type=False))
     item_id: Mapped[uuid.UUID] = mapped_column(GUID(), nullable=False)
     prompt_direction: Mapped[str] = mapped_column(String(10))  # es_to_en | en_to_es
-    prompt_kind: Mapped[str] = mapped_column(String(10))       # meaning | reading | cloze
+    # translation | cloze_short | cloze_long (see domain.srs.prompt_kind_for_stage)
+    prompt_kind: Mapped[str] = mapped_column(String(20))
     submitted_answer: Mapped[str] = mapped_column(Text, default="")
     normalized_answer: Mapped[str] = mapped_column(Text, default="")
     original_correct: Mapped[bool] = mapped_column(Boolean, nullable=False)

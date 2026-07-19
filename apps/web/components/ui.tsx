@@ -4,6 +4,7 @@
 // consistent. All derive from the design tokens in globals.css.
 
 import Link from "next/link";
+import { forwardRef } from "react";
 
 export function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
@@ -24,17 +25,20 @@ export function Label({ htmlFor, children }: { htmlFor: string; children: React.
   );
 }
 
-export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <input
-      {...props}
-      className="w-full rounded-[14px] border border-terraza-dash bg-terraza-bg px-4 py-3 tracking-cozy outline-none focus-visible:ring-2 focus-visible:ring-terraza-accent"
-    />
-  );
-}
+export const Input = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
+  function Input(props, ref) {
+    return (
+      <input
+        ref={ref}
+        {...props}
+        className="w-full rounded-[14px] border border-terraza-dash bg-terraza-bg px-4 py-3 tracking-cozy outline-none focus-visible:ring-2 focus-visible:ring-terraza-accent"
+      />
+    );
+  },
+);
 
 export function Button({
-  children, variant = "primary", ...props
+  children, variant = "primary", className = "", ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "ghost" }) {
   const base =
     "rounded-full px-6 py-3 tracking-cozy transition-transform hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-terraza-ink";
@@ -43,7 +47,7 @@ export function Button({
       ? "bg-terraza-accent text-terraza-accentInk"
       : "bg-terraza-pill text-terraza-ink";
   return (
-    <button {...props} className={`${base} ${styles}`}>
+    <button {...props} className={`${base} ${styles} ${className}`}>
       {children}
     </button>
   );

@@ -24,7 +24,7 @@ from app.auth.capabilities import capabilities_for
 from app.auth.deps import get_current_user
 from app.core.config import Settings, get_settings
 from app.db.session import get_db
-from app.models.identity import User
+from app.models.identity import Profile, User
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
@@ -49,7 +49,10 @@ def signup(
     db: Session = Depends(get_db), settings: Settings = Depends(get_settings),
 ) -> TokenResponse:
     try:
-        service.create_account(db, email=body.email, password=body.password, settings=settings)
+        service.create_account(
+            db, email=body.email, password=body.password,
+            display_name=body.name, settings=settings,
+        )
         tokens = service.login(
             db, email=body.email, password=body.password, settings=settings,
             user_agent=request.headers.get("user-agent"), ip_hash=_ip_hash(request),
@@ -102,6 +105,11 @@ def logout(body: LogoutRequest, db: Session = Depends(get_db)) -> None:
 
 
 @router.get("/me", response_model=MeResponse)
-def me(user: User = Depends(get_current_user)) -> MeResponse:
+def me(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> MeResponse:
     caps = sorted(c.value for c in capabilities_for(user.role))
-    return MeResponse(id=str(user.id), email=user.email, role=user.role.value, capabilities=caps)
+    profile = db.get(Profile, user.id)
+    name = profile.display_name if profile else user.email.split("@")[0]
+    return MeResponse(
+        id=str(user.id), email=user.email, name=name,
+        role=user.role.value, capabilities=caps,
+    )

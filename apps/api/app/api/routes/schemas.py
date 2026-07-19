@@ -6,6 +6,7 @@ from pydantic import BaseModel, EmailStr, Field
 
 class SignupRequest(BaseModel):
     email: EmailStr
+    name: str = Field(min_length=1, max_length=80)
     password: str = Field(min_length=8, max_length=200)
 
 
@@ -37,5 +38,147 @@ class UserPublic(BaseModel):
 class MeResponse(BaseModel):
     id: str
     email: str
+    name: str
     role: str
     capabilities: list[str]
+
+
+# ---- Admin ----
+
+class ImportReportOut(BaseModel):
+    kind: str
+    rows_seen: int
+    rows_ok: int
+    error_count: int
+    warning_count: int
+    level_counts: dict[int, int]
+    issues: list[dict]
+
+
+class ImportResult(BaseModel):
+    created: int
+    updated: int
+    report: ImportReportOut
+
+
+class ContentItemOut(BaseModel):
+    id: str
+    term: str
+    translation: str
+    part_of_speech: str
+    level: int
+    status: str
+
+
+class ContentListOut(BaseModel):
+    items: list[ContentItemOut]
+    total: int
+
+
+class StatusChange(BaseModel):
+    status: str = Field(pattern="^(draft|in_review|published|archived)$")
+
+
+class AdminUserOut(BaseModel):
+    id: str
+    email: str
+    name: str
+    role: str
+    status: str
+
+
+class RoleChange(BaseModel):
+    role: str = Field(pattern="^(user|beta_tester|moderator|content_editor|admin|owner)$")
+
+
+# ---- Learn (lessons + reviews) ----
+
+class LevelOut(BaseModel):
+    id: str
+    position: int
+    title: str
+    vocab_count: int
+    grammar_count: int
+    unlocked: bool
+
+
+class LessonOut(BaseModel):
+    position: int
+    kind: str
+    title: str
+    item_count: int
+    completed: bool
+
+
+class LessonDetailOut(BaseModel):
+    position: int
+    title: str
+    items: list[dict]
+
+
+class CompleteLessonRequest(BaseModel):
+    idempotency_key: str
+
+
+class CompleteLessonOut(BaseModel):
+    xp_awarded: int
+    unlocked: int
+    already_completed: bool
+
+
+class QueuePromptOut(BaseModel):
+    item_type: str
+    item_id: str
+    direction: str
+    srs_stage: int
+    prompt_kind: str
+    shown: str
+    article: str | None = None
+    part_of_speech: str = ""
+    hint: str | None = None
+
+
+class SessionOut(BaseModel):
+    session_id: str
+    prompts: list[QueuePromptOut]
+
+
+class SubmitAnswerRequest(BaseModel):
+    item_type: str = Field(pattern="^(vocabulary|grammar)$")
+    item_id: str
+    direction: str = Field(pattern="^(es_to_en|en_to_es)$")
+    answer: str = Field(max_length=500)
+    idempotency_key: str
+
+
+class SubmitAnswerOut(BaseModel):
+    original_correct: bool
+    final_correct: bool
+    warnings: list[str]
+    typo_forgiven: bool
+    synonym_matched: bool
+    expected: str
+    pair_resolved: bool
+    srs_stage_before: int | None = None
+    srs_stage_after: int | None = None
+    xp_awarded: int = 0
+    answer_id: str | None = None
+    message: str | None = None
+
+
+class UndoRequest(BaseModel):
+    reason: str | None = Field(default=None, max_length=300)
+
+
+class ForecastBucket(BaseModel):
+    label: str
+    count: int
+
+
+class StatsOut(BaseModel):
+    xp_total: int
+    reviews_due: int
+    items_learned: int
+    items_fluent: int
+    leeches: int
+    forecast: list[ForecastBucket]

@@ -32,7 +32,7 @@ def client(db):
 
 def test_signup_returns_tokens_and_creates_user(client, db):
     r = client.post("/api/v1/auth/signup",
-                    json={"email": "a@example.com", "password": "supersecret1"})
+                    json={"email": "a@example.com", "name": "Test User", "password": "supersecret1"})
     assert r.status_code == 201, r.text
     body = r.json()
     assert body["access_token"] and body["refresh_token"]
@@ -41,21 +41,21 @@ def test_signup_returns_tokens_and_creates_user(client, db):
 
 
 def test_duplicate_signup_rejected(client):
-    client.post("/api/v1/auth/signup", json={"email": "d@example.com", "password": "supersecret1"})
-    r = client.post("/api/v1/auth/signup", json={"email": "d@example.com", "password": "supersecret1"})  # noqa: E501
+    client.post("/api/v1/auth/signup", json={"email": "d@example.com", "name": "Test User", "password": "supersecret1"})
+    r = client.post("/api/v1/auth/signup", json={"email": "d@example.com", "name": "Test User", "password": "supersecret1"})  # noqa: E501
     assert r.status_code == 400
 
 
 def test_login_wrong_password_is_401_and_uniform(client):
-    client.post("/api/v1/auth/signup", json={"email": "e@example.com", "password": "supersecret1"})
-    r = client.post("/api/v1/auth/login", json={"email": "e@example.com", "password": "WRONG"})
+    client.post("/api/v1/auth/signup", json={"email": "e@example.com", "name": "Test User", "password": "supersecret1"})
+    r = client.post("/api/v1/auth/login", json={"email": "e@example.com", "name": "Test User", "password": "WRONG"})
     assert r.status_code == 401
     # message must not reveal whether the email exists
     assert "email or password" in r.json()["detail"]["error"]["message"].lower()
 
 
 def test_login_unknown_email_is_401(client):
-    r = client.post("/api/v1/auth/login", json={"email": "nobody@example.com", "password": "whatever12"})  # noqa: E501
+    r = client.post("/api/v1/auth/login", json={"email": "nobody@example.com", "name": "Test User", "password": "whatever12"})  # noqa: E501
     assert r.status_code == 401
 
 
@@ -65,7 +65,7 @@ def test_me_requires_auth(client):
 
 def test_me_returns_identity_and_capabilities(client):
     tok = client.post("/api/v1/auth/signup",
-                      json={"email": "m@example.com", "password": "supersecret1"}).json()["access_token"]  # noqa: E501
+                      json={"email": "m@example.com", "name": "Test User", "password": "supersecret1"}).json()["access_token"]  # noqa: E501
     r = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {tok}"})
     assert r.status_code == 200
     body = r.json()
@@ -76,7 +76,7 @@ def test_me_returns_identity_and_capabilities(client):
 
 def test_refresh_rotates_and_old_token_is_dead(client, db):
     signup = client.post("/api/v1/auth/signup",
-                         json={"email": "r@example.com", "password": "supersecret1"}).json()
+                         json={"email": "r@example.com", "name": "Test User", "password": "supersecret1"}).json()
     old_refresh = signup["refresh_token"]
     r = client.post("/api/v1/auth/refresh", json={"refresh_token": old_refresh})
     assert r.status_code == 200
@@ -89,7 +89,7 @@ def test_refresh_rotates_and_old_token_is_dead(client, db):
 
 def test_reuse_detection_revokes_chain(client, db):
     signup = client.post("/api/v1/auth/signup",
-                         json={"email": "chain@example.com", "password": "supersecret1"}).json()
+                         json={"email": "chain@example.com", "name": "Test User", "password": "supersecret1"}).json()
     r1 = client.post("/api/v1/auth/refresh", json={"refresh_token": signup["refresh_token"]}).json()
     # r1 is now the live token; reuse the original again -> triggers chain revocation
     client.post("/api/v1/auth/refresh", json={"refresh_token": signup["refresh_token"]})
@@ -100,7 +100,7 @@ def test_reuse_detection_revokes_chain(client, db):
 
 def test_logout_kills_session_access(client, db):
     signup = client.post("/api/v1/auth/signup",
-                         json={"email": "o@example.com", "password": "supersecret1"}).json()
+                         json={"email": "o@example.com", "name": "Test User", "password": "supersecret1"}).json()
     access, refresh = signup["access_token"], signup["refresh_token"]
     # /me works before logout
     assert client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {access}"}).status_code == 200  # noqa: E501
@@ -111,7 +111,7 @@ def test_logout_kills_session_access(client, db):
 
 def test_capability_gate_forbids_regular_user(client):
     tok = client.post("/api/v1/auth/signup",
-                      json={"email": "p@example.com", "password": "supersecret1"}).json()["access_token"]  # noqa: E501
+                      json={"email": "p@example.com", "name": "Test User", "password": "supersecret1"}).json()["access_token"]  # noqa: E501
     r = client.get("/api/v1/_probe/content", headers={"Authorization": f"Bearer {tok}"})
     assert r.status_code == 403
 
@@ -123,7 +123,7 @@ def test_capability_gate_allows_content_editor(client, db):
                            settings=settings, role=UserRole.content_editor)
     db.commit()
     tok = client.post("/api/v1/auth/login",
-                      json={"email": "ed@example.com", "password": "supersecret1"}).json()["access_token"]  # noqa: E501
+                      json={"email": "ed@example.com", "name": "Test User", "password": "supersecret1"}).json()["access_token"]  # noqa: E501
     r = client.get("/api/v1/_probe/content", headers={"Authorization": f"Bearer {tok}"})
     assert r.status_code == 200
     assert r.json()["ok"] is True

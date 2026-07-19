@@ -43,7 +43,17 @@ class GUID(TypeDecorator):
 
 
 class Base(DeclarativeBase):
-    pass
+    """Declarative base.
+
+    `type_annotation_map` makes EVERY `Mapped[datetime]` in the schema map to
+    TIMESTAMP WITH TIME ZONE. Postgres otherwise returns naive datetimes, which
+    then explode when compared against timezone-aware `now()` values. Setting it
+    once here is the durable fix — individual models don't have to remember.
+    """
+
+    type_annotation_map = {
+        datetime: DateTime(timezone=True),
+    }
 
 
 class TimestampMixin:

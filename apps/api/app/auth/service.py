@@ -48,6 +48,7 @@ def _password_column(user: User) -> str | None:
 
 def create_account(
     db: Session, *, email: str, password: str, settings: Settings,
+    display_name: str | None = None,
     role: UserRole = UserRole.user, now: dt.datetime | None = None,
 ) -> User:
     email_norm = email.strip().lower()
@@ -63,7 +64,8 @@ def create_account(
     user.password_hash = hash_password(password)  # column added in migration
     db.add(user)
     db.flush()
-    db.add(Profile(user_id=user.id, display_name=email_norm.split("@")[0]))
+    name = (display_name or "").strip() or email_norm.split("@")[0]
+    db.add(Profile(user_id=user.id, display_name=name))
     db.add(UserSettings(user_id=user.id))
     db.flush()
     return user

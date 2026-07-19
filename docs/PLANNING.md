@@ -652,3 +652,94 @@ endpoints), protected dashboard route, and the header/nav from PLANNING §20.
 `next build` verified (all 5 routes compile). typecheck + ruff clean.
 
 **Next — slice 1e:** admin skeleton + CSV import UI + user/role management, then Phase 1 closes.
+
+---
+
+## Slice 1e — Admin Panel, Landing Page, Richer Signup (completed 2026-07-13)
+
+**Delivered:**
+- **Landing page** (`/`): public front door in Terraza style — hero, feature cards,
+  how-it-works, closing CTA. Signed-in visitors auto-redirect to their dashboard.
+  (Added to Phase 1 by request; was previously implied for Phase 4.)
+- **Signup now collects name + confirm password** (§by request): `SignupRequest` gains
+  `name`; the service stores it as the profile display_name; `/me` returns it; the
+  dashboard greets by real name. Frontend form validates name presence, 8-char minimum,
+  and password match before submitting.
+- **Admin API** (all capability-gated + audit-logged, §22):
+  - `POST /admin/imports/{vocabulary,grammar}` — multipart CSV upload → importer →
+    draft rows + a persisted ContentImport report. 5 MB cap, UTF-8 (BOM-tolerant).
+  - `GET /admin/content/{vocabulary,grammar}` — paginated, filter by level/status.
+  - `PATCH /admin/content/.../status` — draft→in_review→published→archived.
+  - `GET /admin/users`, `PATCH /admin/users/{id}/role` — with the rule that only an
+    owner may grant or revoke the owner role.
+- **Admin panel UI** (`/admin`, gated on `admin_panel` capability): CSV import with the
+  full validation report rendered (errors + collapsible warnings), content browser with
+  one-click publish, and user role management. Non-admins are redirected away.
+
+**Tests: 52 backend** (was 45) — import authorization, real-CSV import as content_editor
+(465 created, 1 error surfaced), audit-log writes, list+publish, user-management gating,
+owner-role protection, and signup name capture. Frontend: 3 passing, all 6 routes build.
+
+**Phase 1 is complete.** Next: **Phase 2** — the lesson flow, the SRS review engine
+(the spaced-repetition scheduler from §10), and answer checking. This is where Polyglot
+starts actually teaching Spanish.
+
+---
+
+## Slice 2 — Phase 2: Lesson Flow, SRS Engine, Answer Checking (completed 2026-07-19)
+
+**The app now teaches Spanish.** Learn → unlock into SRS → review → schedule.
+
+**Pure domain logic (deterministic, heavily unit-tested):**
+- `domain/srs.py` — 9-stage engine. Clean pair (0 wrong) promotes +1; any wrong
+  demotes by ceil(wrong/2) × penalty, where penalty is 2 at Familiar 1+ (stage ≥5),
+  1 below. Floors at Beginner 1, caps at Fluent. Intervals 4h→8h→1d→2d→1wk→2wk→1mo→4mo;
+  Fluent leaves the queue. Leech items review at half-interval.
+- `domain/answer_check.py` — accent-sensitive with warn-pass in normal mode
+  (strict/test require accents); Damerau-Levenshtein typo tolerance scaled to length
+  (short words never over-forgiven); stored synonyms + rejected answers; user synonyms
+  behind a setting. Never uses AI matching, only stored data.
+- `domain/queue.py` — two prompts per item (meaning + reading), pair distance held to
+  0–5. Validated across 50 seeds + Hypothesis property tests. Back-to-back mode honours
+  the direction-order setting.
+- `domain/leech.py` — weighted 10-review window, newest-heaviest; thresholds watch 0.8 /
+  leech 1.0 / critical 1.5. A persistently 2-wrong item exceeds 1.0 → reaches Critical
+  (**resolves R-05**).
+- `domain/curriculum.py` — three modes (default_dispersed / grammar_batch /
+  fully_dispersed), seed-stable so refresh never reshuffles. Level unlock uses ACTUAL
+  item counts (all grammar + ≥75% vocab at Familiar 1), so Level 6's 36 words and the
+  missing L6+ grammar don't wedge progression (**R-01/R-02/R-08**).
+
+**Service + API layer:**
+- `services/lessons.py`, `services/reviews.py`; routes in `api/routes/learn.py`:
+  levels, lessons, lesson detail/complete, review sessions, answer submit, undo,
+  session complete, and `/me/stats`. Grading and SRS transitions are server-side only.
+- Idempotency everywhere: lesson completion and answer submission both take a
+  client key; retries never double-award XP or double-write answers.
+- Pair semantics: an item's SRS changes only when BOTH prompts are answered; early
+  exit keeps resolved pairs and reverts half-finished ones.
+
+**Frontend:**
+- `/levels`, `/levels/[level]`, `/levels/[level]/lessons/[lesson]` (lesson-taking UI
+  with progress bar and teaching cards), `/reviews` (full session: paired prompts,
+  answer input, correct/incorrect feedback, SRS stage movement, "i was right" undo).
+- Dashboard widgets wired to real `/me/stats` (reviews due, XP, progression, forecast).
+- Header nav now points at /levels and /reviews.
+
+**Requested additions delivered:**
+- Dashboard greets "Welcome back, <Name>" using the signup name.
+- Login page has a "← back to home" link and a "forgot your password?" link to a
+  /reset-password placeholder (real flow ships with email support).
+
+**Tests: 140 backend** (was 52) + 3 frontend. Migration round-trips, zero drift, all 11
+web routes build.
+
+### ⚠️ OPEN ISSUE for Jacob — XP spec conflict
+The spec's worked example says "30 vocab reviews + 3 grammar reviews = 600 + 30 = 630",
+which implies vocab_review=20 and grammar_review=10. But the spec's own XP *table* lists
+grammar_review=20 and vocab_review=10 — the opposite. Those give 30×10 + 3×20 = **360**,
+not 630. I implemented the **table** as the source of truth (360). If you actually want
+the worked-example numbers, we flip two values in `domain/xp.py`. Flagging for your call.
+
+**Next — Phase 3:** practice features (listening, translation, fill-in-the-blank,
+conjugation, weak-item/leech practice).
