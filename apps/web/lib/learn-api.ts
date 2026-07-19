@@ -93,3 +93,32 @@ export const STAGE_NAMES: Record<number, string> = {
   1: "Beginner 1", 2: "Beginner 2", 3: "Beginner 3", 4: "Beginner 4",
   5: "Familiar 1", 6: "Familiar 2", 7: "Intermediate", 8: "Advanced", 9: "Fluent",
 };
+
+// ---- Practice ----
+export interface PracticePrompt {
+  item_type: string; item_id: string; mode: string;
+  shown: string; translation: string; tense?: string | null; person?: string | null;
+}
+export interface PracticeSession { session_id: string; mode: string; prompts: PracticePrompt[]; }
+export interface PracticeGrade {
+  correct: boolean; expected: string; warnings: string[];
+  xp_awarded: number; practice_stage: number | null; perfect: boolean;
+}
+
+export const practice = {
+  start: (mode: string) =>
+    req<PracticeSession>(`/api/v1/practice/sessions?mode=${mode}`, { method: "POST" }),
+  answer: (sessionId: string, body: {
+    item_type: string; item_id: string; mode: string; answer: string;
+    tense?: string | null; person?: string | null; idempotency_key: string;
+  }) => req<PracticeGrade>(`/api/v1/practice/sessions/${sessionId}/answers`,
+    { method: "POST", body: JSON.stringify(body) }),
+  finish: (sessionId: string) =>
+    req<{ state: string }>(`/api/v1/practice/sessions/${sessionId}/complete`, { method: "POST" }),
+};
+
+export const PRACTICE_MODES = [
+  { id: "fill_blank", title: "fill in the blank", desc: "complete sentences with the missing word", icon: "✎" },
+  { id: "conjugation", title: "verb conjugation", desc: "conjugate verbs across tenses and persons", icon: "⇄" },
+  { id: "weak_items", title: "weak items", desc: "drill the words that keep tripping you up", icon: "✦" },
+] as const;

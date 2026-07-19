@@ -193,3 +193,40 @@ class StatsOut(BaseModel):
     stage_counts: list[SrsStageCount]
     forecast: list[ForecastBucket]
     next_review_at: str | None = None
+
+
+# ---- Practice ----
+
+class PracticePromptOut(BaseModel):
+    item_type: str
+    item_id: str
+    mode: str
+    shown: str
+    translation: str
+    tense: str | None = None
+    person: str | None = None
+
+
+class PracticeSessionOut(BaseModel):
+    session_id: str
+    mode: str
+    prompts: list[PracticePromptOut]
+
+
+class PracticeAnswerRequest(BaseModel):
+    item_type: str = Field(pattern="^(vocabulary|grammar)$")
+    item_id: str
+    mode: str = Field(pattern="^(fill_blank|conjugation|weak_items)$")
+    answer: str = Field(max_length=500)
+    tense: str | None = Field(default=None, max_length=30)
+    person: str | None = Field(default=None, max_length=30)
+    idempotency_key: str
+
+
+class PracticeGradeOut(BaseModel):
+    correct: bool
+    expected: str
+    warnings: list[str]
+    xp_awarded: int
+    practice_stage: int | None = None
+    perfect: bool = False

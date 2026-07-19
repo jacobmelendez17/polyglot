@@ -227,6 +227,21 @@ export function LeechWidget() {
 
 // ---- welcome banner ----------------------------------------------------
 
+export function PracticeWidget() {
+  return (
+    <Card>
+      <WidgetLabel>PRACTICE</WidgetLabel>
+      <p className="text-sm text-terraza-soft">
+        drill weak items, fill-in-the-blank, or conjugate verbs — extra reps, no schedule.
+      </p>
+      <Link href="/practice"
+        className="mt-4 inline-block rounded-full bg-terraza-pill px-5 py-2 tracking-cozy">
+        open practice →
+      </Link>
+    </Card>
+  );
+}
+
 export function WelcomeWidget() {
   const { user } = useAuth();
   const { stats } = useStats();

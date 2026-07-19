@@ -795,3 +795,35 @@ BunPro, and KaniCompanion.
 **Note:** kept the Terraza visual language (the app's established identity) but adopted
 WaniKani's information architecture. A draggable/customizable widget layout (WaniKani's
 newest feature) is deferred — this slice delivers the fixed varied-size layout.
+
+---
+
+## Slice 4 — Phase 3 practice (core), onboarding slides, wider dashboard (2026-07-19)
+
+**Wider dashboard:** containers widened max-w-5xl → max-w-7xl; widget grid reworked to
+6 columns for the extra space (progression 3-wide, forecast 2-wide, tiles fill the rest,
+plus a new practice tile).
+
+**Practice features** (Phase 3 core — TTS listening deferred to its own slice):
+- `domain/practice.py` (pure): weak-item weighting (leeches dominate, then mistakes, then
+  low stages), seed-stable selection, cloze construction (whole-word, case-insensitive,
+  returns None when the term isn't in the sentence), conjugation cell lookup, and the
+  Uno..Cinco practice-stage progression with Perfect status.
+- `services/practice.py`: builds sessions from LEARNED items, grades with the practice-mode
+  answer checker. Crucially, the expected answer is derived SERVER-SIDE per mode — the client
+  never declares it. Practice awards XP and advances the practice-stage but never touches SRS.
+- Routes `api/routes/practice.py`: session create / answer / complete. Three modes:
+  fill_blank (cloze from linked example sentences), conjugation (from verbs_meta), weak_items.
+- Frontend: `/practice` hub + `/practice/[mode]` runner (progress bar, feedback, XP tally),
+  practice nav link, dashboard practice tile.
+
+**Onboarding slides** (Phase 4, pulled forward): `/welcome` — 5-slide intro (map, SRS trail,
+skills, notebook gag, ready) shown after signup. Gag is fully skippable with an accessible
+plain Continue path; SVG art is decorative/aria-hidden. Signup now routes to /welcome; login
+still goes straight to the dashboard.
+
+**Tests: 161 backend** (+20: 13 practice-domain, 7 practice-flow) + 3 frontend. No migration
+(practice reuses existing tables). Zero drift, all routes build.
+
+**Deferred:** TTS listening practice (needs the SpeechScoreProvider/TTS abstraction — its own
+slice), and the full practice-stage UI surfacing across all categories.

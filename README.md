@@ -43,5 +43,5 @@ docs/           PLANNING.md — architecture, schema, SRS spec, phases
 
 ## Status
 
-Phase 2 COMPLETE + WaniKani-style dashboard (lesson/review buttons, SRS progression, forecast)
+Phase 3 core practice (fill-blank, conjugation, weak-items) + onboarding slides + wider dashboard
 phased roadmap, definition of done, and open decisions.

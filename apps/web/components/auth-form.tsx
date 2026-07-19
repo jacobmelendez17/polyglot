@@ -41,9 +41,13 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
     setSubmitting(true);
     try {
-      if (isSignup) await signup(email, name.trim(), password);
-      else await login(email, password);
-      router.push("/dashboard");
+      if (isSignup) {
+        await signup(email, name.trim(), password);
+        router.push("/welcome");   // first-time onboarding slides
+      } else {
+        await login(email, password);
+        router.push("/dashboard");
+      }
     } catch (err) {
       if (err instanceof ApiClientError) setError(err.message);
       else setError("Something went wrong. Please try again.");

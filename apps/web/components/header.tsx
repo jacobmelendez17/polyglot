@@ -13,7 +13,7 @@ export function Header() {
 
   return (
     <header className="border-b border-terraza-dash">
-      <div className="mx-auto flex max-w-5xl items-center gap-2 px-4 py-3">
+      <div className="mx-auto flex max-w-7xl items-center gap-2 px-4 py-3">
         <Link href="/dashboard" className="mr-auto text-lg lowercase tracking-cozy">
           polyglot <span className="text-terraza-accent">✦</span>
         </Link>
@@ -24,6 +24,9 @@ export function Header() {
           </Link>
           <Link href="/reviews" className="rounded-full px-4 py-2 text-terraza-soft hover:bg-terraza-pill">
             reviews
+          </Link>
+          <Link href="/practice" className="rounded-full px-4 py-2 text-terraza-soft hover:bg-terraza-pill">
+            practice
           </Link>
 
           <div className="relative">
