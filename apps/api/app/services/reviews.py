@@ -20,9 +20,10 @@ from sqlalchemy.orm import Session
 from app.domain import leech as leech_mod
 from app.domain import srs
 from app.domain.answer_check import CheckMode, check_answer, expected_from_item
+from app.domain.audio import StoredAsset, resolve_audio
 from app.domain.queue import Direction, QueueItem, ReviewOrder, build_queue
 from app.domain.xp import XpKind, xp_for
-from app.models.curriculum import GrammarPoint, VocabularyItem
+from app.models.curriculum import AudioAsset, GrammarPoint, VocabularyItem
 from app.models.enums import ItemType, LeechState
 from app.models.identity import UserSettings
 from app.models.progress import (
@@ -120,6 +121,23 @@ def start_session(db: Session, user_id: uuid.UUID, *, kind: str = "review",
 
 # --- prompt payload ------------------------------------------------------
 
+def _audio_payload(db: Session, text: str, content_id, content_type: str) -> dict | None:
+    """Audio for the Spanish side of a prompt. None when there's nothing to say."""
+    if not text:
+        return None
+    row = db.execute(
+        select(AudioAsset).where(
+            AudioAsset.content_type == content_type,
+            AudioAsset.content_id == content_id,
+        ).limit(1)
+    ).scalar_one_or_none()
+    asset = None
+    if row is not None:
+        asset = StoredAsset(storage_path=row.storage_path, locale=row.locale,
+                            voice_id=row.voice_id, source=row.source)
+    return resolve_audio(text, asset=asset).to_dict()
+
+
 def prompt_payload(db: Session, item_type: str, item_id: str, direction: str) -> dict:
     """What the user sees. Never leaks accepted/rejected answers."""
     if item_type == "vocabulary":
@@ -133,13 +151,16 @@ def prompt_payload(db: Session, item_type: str, item_id: str, direction: str) ->
             "article": article if direction == Direction.en_to_es.value else None,
             "part_of_speech": v.part_of_speech,
             "hint": v.pronunciation if direction == Direction.es_to_en.value else None,
+            # Audio always speaks the Spanish, whichever way the prompt runs.
+            "audio": _audio_payload(db, v.term, v.id, "vocabulary"),
         }
     g = db.get(GrammarPoint, uuid.UUID(item_id))
     if g is None:
         raise ReviewError("item not found")
     shown = g.title if direction == Direction.es_to_en.value else g.translation
     return {"shown": shown, "article": None, "part_of_speech": g.part_of_speech,
-            "hint": g.structure_pattern or None}
+            "hint": g.structure_pattern or None,
+            "audio": _audio_payload(db, g.title, g.id, "grammar")}
 
 
 def _expected_for(db: Session, user_id: uuid.UUID, item_type: str, item_id: str,

@@ -128,12 +128,12 @@ def _plan_fully_dispersed(
 # --- Level unlocking (PLANNING §5) ---------------------------------------
 
 FAMILIAR_1 = 5
-# WaniKani/BunPro-style gating: the next level stays locked until EVERY item in
-# the previous level has reached Familiar 1. (WaniKani itself uses 90%; this is
-# stricter by request. Lowering this ratio is the one-line escape hatch if a
-# single stubborn leech ever wedges progression.)
-VOCAB_UNLOCK_RATIO = 1.0
-GRAMMAR_UNLOCK_RATIO = 1.0
+# WaniKani/BunPro-style gating: the next level stays locked until 90% of the
+# previous level has reached Familiar 1. 90% (rather than 100%) is deliberate —
+# it stops a single stubborn leech from stalling progression indefinitely, which
+# is exactly why WaniKani uses this number too.
+VOCAB_UNLOCK_RATIO = 0.9
+GRAMMAR_UNLOCK_RATIO = 0.9
 
 
 def level_unlock_progress(

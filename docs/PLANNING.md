@@ -872,3 +872,70 @@ reporting) + 3 frontend. No migration. Zero drift.
 
 Also fixed packaging: `packages = ["app"]` → find-packages with `package-data` for the CSVs,
 so subpackages and seed data ship correctly.
+
+---
+
+## Slice 6 — 90% gating, lesson count scoped to unlocked levels (2026-07-21)
+
+**Unlock threshold 100% → 90%** (`VOCAB_UNLOCK_RATIO`/`GRAMMAR_UNLOCK_RATIO` = 0.9),
+matching WaniKani. 90% is the right number precisely because it stops a handful of
+stubborn leeches from stalling progression indefinitely; tests cover both sides
+(44/48 unlocks, 43/48 does not).
+
+**Fixed: the dashboard advertised 509 lessons.** `lessons_available` counted every
+published item in the curriculum, so the lessons button offered the entire 509-item
+corpus as if it were immediately learnable. It now counts only unstarted items in levels
+the user has actually UNLOCKED — level 1 only, at the start.
+
+**Fixed: locked levels were reachable by URL.** `/levels/5/lessons` (and lesson detail,
+quiz, and complete) had no server-side unlock check — the gate existed only in the UI.
+All four endpoints now return 403 `level_locked`. The gate is enforced where it counts.
+
+**Refactor:** replaced the per-level `_level_unlock_state` (one query set per level) with
+`_all_level_states`, which loads modules, published item ids, and user progress once and
+evaluates every level in a single pass. `/levels` and `/me/stats` now share it, so the
+lesson count and the level list can't disagree.
+
+**Frontend:** the lessons button's empty state is now context-aware — "keep reviewing to
+unlock the next level" once you've learned something, rather than a bare "nothing right now".
+
+**Tests: 175 backend** (+5: scoped lesson count, count grows on unlock, 403 on all four
+locked-level endpoints, unlocked level reachable, 90% boundary cases) + 3 frontend.
+No migration. Zero drift.
+
+---
+
+## Slice 7 — Listening practice & audio (closes Phase 3) (2026-07-22)
+
+**Audio provider abstraction** (`domain/audio.py`, pure): `resolve_audio()` returns an
+`AudioRef` in one of three modes — `stored` (a real file), `browser_tts` (synthesise
+client-side), or `unavailable`. Stored assets ALWAYS win, so human recordings can replace
+TTS gradually, item by item, with no code change and no migration (**resolves R-16**).
+`asset_storage_path()` implements the §33 naming contract.
+
+**MVP audio = the browser's own speech engine.** Free, keyless, no per-request cost, works
+in every current browser — which is what makes listening shippable now rather than blocked
+on a vendor decision (**R-13/R-16 stay open without blocking**). Adding cloud TTS later is a
+new provider plus rows in `audio_assets`; no call site changes.
+
+**Listening practice** (`/practice/listening`): hear a word, type what you heard. The
+Spanish is deliberately never rendered — tests assert `shown == ""` and that typing the
+English translation is graded WRONG. Autoplays once per prompt with a replay button.
+
+**Audio everywhere else:** play buttons on lesson teaching cards, quiz prompts, and review
+prompts (Spanish side only — hearing the English would give the answer away).
+
+**Settings + migration `70e897feb3f0`:** `audio_autoplay` (default OFF — unexpected sound is
+hostile), `audio_voice`, `audio_rate`. ⚠️ Alembic generated these as NOT NULL with no
+server_default, which would have failed on the existing `user_settings` rows; added
+`server_default` and verified by migrating a table that already had a row (backfilled
+to `(False, '', 1.00)`).
+
+**Frontend** `lib/speech.ts`: wraps `speechSynthesis` with async voice loading, LatAm/Mexican
+Spanish voice preference, cancel-before-play, and graceful degradation when unsupported.
+
+**Tests: 188 backend** (+13: 9 audio-resolution incl. stored-beats-TTS and the naming
+contract, 4 listening incl. word-never-shown and English-rejected) + 3 frontend. Zero drift.
+
+**Phase 3 is complete.** Next: slice 8 (practice stages + item detail pages) or slice 9
+(guided tour + widget customization).

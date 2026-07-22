@@ -16,9 +16,10 @@ from sqlalchemy.orm import Session
 from app.db.base import ContentStatus
 from app.domain import srs
 from app.domain.answer_check import CheckMode, check_answer, expected_from_item
+from app.domain.audio import StoredAsset, resolve_audio
 from app.domain.curriculum import PlannedItem, PlannedLesson, plan_level
 from app.domain.xp import XpKind, xp_for
-from app.models.curriculum import GrammarPoint, Module, VocabularyItem
+from app.models.curriculum import AudioAsset, GrammarPoint, Module, VocabularyItem
 from app.models.enums import CurriculumMode, ItemType
 from app.models.identity import UserSettings
 from app.models.progress import (
@@ -125,6 +126,22 @@ def list_lessons(db: Session, user_id: uuid.UUID, module: Module) -> list[Lesson
     return views
 
 
+def _lesson_audio(db: Session, text: str, content_id, content_type: str) -> dict | None:
+    if not text:
+        return None
+    row = db.execute(
+        select(AudioAsset).where(
+            AudioAsset.content_type == content_type,
+            AudioAsset.content_id == content_id,
+        ).limit(1)
+    ).scalar_one_or_none()
+    asset = None
+    if row is not None:
+        asset = StoredAsset(storage_path=row.storage_path, locale=row.locale,
+                            voice_id=row.voice_id, source=row.source)
+    return resolve_audio(text, asset=asset).to_dict()
+
+
 def get_lesson_items(db: Session, user_id: uuid.UUID, module: Module, position: int) -> list[dict]:
     """Full teaching payload for a lesson: everything the user needs to learn."""
     plan = plan_for_user(db, user_id, module)
@@ -145,6 +162,7 @@ def get_lesson_items(db: Session, user_id: uuid.UUID, module: Module, position: 
                 # Article only for nouns — enforced at the DB level too (§6).
                 "article": v.article.value if v.article.value != "none" else None,
                 "gender": v.grammatical_gender.value,
+                "audio": _lesson_audio(db, v.term, v.id, "vocabulary"),
             })
         else:
             g = db.get(GrammarPoint, uuid.UUID(it.item_id))
@@ -155,6 +173,7 @@ def get_lesson_items(db: Session, user_id: uuid.UUID, module: Module, position: 
                 "term": g.title, "translation": g.translation,
                 "structure": g.structure_pattern, "meaning": g.meaning,
                 "explanation": g.explanation_rich,
+                "audio": _lesson_audio(db, g.title, g.id, "grammar"),
             })
     return out
 
@@ -270,6 +289,7 @@ def start_lesson_quiz(
             # Recognition direction: shown the Spanish, type the English.
             "shown": i["term"],
             "hint": i.get("part_of_speech") or "",
+            "audio": i.get("audio"),
         }
         for i in items
     ]

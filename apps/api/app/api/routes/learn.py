@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import datetime as dt
 import uuid
+from dataclasses import dataclass
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
@@ -67,81 +68,115 @@ def _module_or_404(db: Session, position: int) -> Module:
     return module
 
 
+def _require_unlocked(db: Session, user_id: uuid.UUID, module: Module) -> None:
+    """Locked levels aren't reachable by URL either — the gate is server-side."""
+    lang_id = module.language_id
+    for st in _all_level_states(db, user_id, lang_id):
+        if st.module.id == module.id:
+            if not st.unlocked:
+                raise _err(
+                    "Finish the previous level to unlock this one.",
+                    "level_locked", 403,
+                )
+            return
+
+
 @router.get("/levels", response_model=list[LevelOut])
 def list_levels(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     lang = db.execute(select(Language).where(Language.code == "es-MX")).scalar_one_or_none()
     if lang is None:
         return []
-    modules = db.execute(
-        select(Module).where(Module.language_id == lang.id).order_by(Module.position)
-    ).scalars().all()
     out: list[LevelOut] = []
-    for m in modules:
-        vcount = db.execute(
-            select(func.count()).select_from(VocabularyItem).where(
-                VocabularyItem.module_id == m.id,
-                VocabularyItem.status == ContentStatus.published,
-            )
-        ).scalar_one()
-        gcount = db.execute(
-            select(func.count()).select_from(GrammarPoint).where(
-                GrammarPoint.module_id == m.id,
-                GrammarPoint.status == ContentStatus.published,
-            )
-        ).scalar_one()
-        # Level 1 is always open; later levels open as earlier ones are learned.
-        unlocked, progress = _level_unlock_state(db, user.id, lang.id, m.position)
+    for st in _all_level_states(db, user.id, lang.id):
         out.append(LevelOut(
-            id=str(m.id), position=m.position, title=m.title,
-            vocab_count=vcount, grammar_count=gcount,
-            unlocked=unlocked, unlock_progress=progress,
+            id=str(st.module.id), position=st.module.position, title=st.module.title,
+            vocab_count=len(st.vocab_ids), grammar_count=len(st.grammar_ids),
+            unlocked=st.unlocked, unlock_progress=st.progress,
         ))
     return out
 
 
-def _level_unlock_state(
-    db: Session, user_id: uuid.UUID, lang_id: uuid.UUID, position: int,
-) -> tuple[bool, dict | None]:
-    """(unlocked, progress-toward-unlocking). Level 1 is always open."""
+@dataclass
+class _LevelState:
+    module: Module
+    vocab_ids: list[uuid.UUID]
+    grammar_ids: list[uuid.UUID]
+    unlocked: bool
+    progress: dict | None
+
+
+def _all_level_states(
+    db: Session, user_id: uuid.UUID, lang_id: uuid.UUID,
+) -> list[_LevelState]:
+    """Unlock state for every level, computed in one pass.
+
+    Level 1 is always open; level N opens once level N-1 hits the Familiar-1
+    threshold. Everything is loaded up front (modules, published item ids, the
+    user's progress) so this doesn't fan out into a query per level.
+    """
     from app.domain.curriculum import level_unlock_progress
-    if position <= 1:
-        return True, None
-    prev = db.execute(
-        select(Module).where(Module.language_id == lang_id, Module.position == position - 1)
-    ).scalar_one_or_none()
-    if prev is None:
-        return False, None
-    vocab_ids = db.execute(
-        select(VocabularyItem.id).where(
-            VocabularyItem.module_id == prev.id,
+
+    modules = db.execute(
+        select(Module).where(Module.language_id == lang_id).order_by(Module.position)
+    ).scalars().all()
+    if not modules:
+        return []
+
+    module_ids = [m.id for m in modules]
+    vocab_rows = db.execute(
+        select(VocabularyItem.id, VocabularyItem.module_id).where(
+            VocabularyItem.module_id.in_(module_ids),
             VocabularyItem.status == ContentStatus.published,
+            VocabularyItem.deleted_at.is_(None),
         )
-    ).scalars().all()
-    gram_ids = db.execute(
-        select(GrammarPoint.id).where(
-            GrammarPoint.module_id == prev.id,
+    ).all()
+    grammar_rows = db.execute(
+        select(GrammarPoint.id, GrammarPoint.module_id).where(
+            GrammarPoint.module_id.in_(module_ids),
             GrammarPoint.status == ContentStatus.published,
+            GrammarPoint.deleted_at.is_(None),
         )
-    ).scalars().all()
-    if not vocab_ids and not gram_ids:
-        return False, None
-    prog = {
-        (str(p.item_id)): p.srs_stage
+    ).all()
+    vocab_by_module: dict[uuid.UUID, list[uuid.UUID]] = {m: [] for m in module_ids}
+    grammar_by_module: dict[uuid.UUID, list[uuid.UUID]] = {m: [] for m in module_ids}
+    for item_id, mod_id in vocab_rows:
+        vocab_by_module.setdefault(mod_id, []).append(item_id)
+    for item_id, mod_id in grammar_rows:
+        grammar_by_module.setdefault(mod_id, []).append(item_id)
+
+    stages = {
+        str(p.item_id): p.srs_stage
         for p in db.execute(
             select(UserItemProgress).where(UserItemProgress.user_id == user_id)
         ).scalars().all()
     }
-    unlocked, progress = level_unlock_progress(
-        grammar_stages=[prog.get(str(i), 0) for i in gram_ids],
-        vocab_stages=[prog.get(str(i), 0) for i in vocab_ids],
-    )
-    return unlocked, progress
+
+    states: list[_LevelState] = []
+    prev_state: _LevelState | None = None
+    for m in modules:
+        v_ids = vocab_by_module.get(m.id, [])
+        g_ids = grammar_by_module.get(m.id, [])
+        if prev_state is None:
+            unlocked, progress = True, None          # level 1 is always open
+        elif not prev_state.vocab_ids and not prev_state.grammar_ids:
+            unlocked, progress = False, None         # previous level has no content
+        else:
+            unlocked, progress = level_unlock_progress(
+                grammar_stages=[stages.get(str(i), 0) for i in prev_state.grammar_ids],
+                vocab_stages=[stages.get(str(i), 0) for i in prev_state.vocab_ids],
+            )
+        state = _LevelState(module=m, vocab_ids=v_ids, grammar_ids=g_ids,
+                            unlocked=unlocked, progress=progress)
+        states.append(state)
+        prev_state = state
+    return states
 
 
 @router.get("/levels/{position}/lessons", response_model=list[LessonOut])
 def list_lessons(position: int, db: Session = Depends(get_db),
                  user: User = Depends(get_current_user)):
     module = _module_or_404(db, position)
+    _require_unlocked(db, user.id, module)
     views = lesson_svc.list_lessons(db, user.id, module)
     db.commit()
     return [
@@ -155,6 +190,7 @@ def list_lessons(position: int, db: Session = Depends(get_db),
 def lesson_detail(position: int, lesson_position: int, db: Session = Depends(get_db),
                   user: User = Depends(get_current_user)):
     module = _module_or_404(db, position)
+    _require_unlocked(db, user.id, module)
     items = lesson_svc.get_lesson_items(db, user.id, module, lesson_position)
     db.commit()
     if not items:
@@ -167,6 +203,7 @@ def lesson_detail(position: int, lesson_position: int, db: Session = Depends(get
 def complete_lesson(position: int, lesson_position: int, body: CompleteLessonRequest,
                     db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     module = _module_or_404(db, position)
+    _require_unlocked(db, user.id, module)
     try:
         key = uuid.UUID(body.idempotency_key)
     except ValueError:
@@ -257,29 +294,23 @@ def stats(db: Session = Depends(get_db), user: User = Depends(get_current_user))
     fluent = sum(1 for p in rows if p.srs_stage >= int(srs.Stage.fluent))
     leeches = sum(1 for p in rows if p.leech_state in (LeechState.leech, LeechState.critical))
 
-    # Lessons available = published items not yet started by this user.
+    # Lessons available = published items the user hasn't started, counted ONLY
+    # from levels they've actually unlocked. Counting every published item would
+    # advertise the whole curriculum (509 items) as immediately learnable, when
+    # really only the current level is reachable.
     started_ids = {(p.item_type.value, str(p.item_id)) for p in rows}
     lang = db.execute(select(Language).where(Language.code == "es-MX")).scalar_one_or_none()
     lessons_available = 0
     if lang is not None:
-        pub_vocab = db.execute(
-            select(VocabularyItem.id).where(
-                VocabularyItem.language_id == lang.id,
-                VocabularyItem.status == ContentStatus.published,
-                VocabularyItem.deleted_at.is_(None),
+        for st in _all_level_states(db, user.id, lang.id):
+            if not st.unlocked:
+                continue
+            lessons_available += sum(
+                1 for i in st.vocab_ids if ("vocabulary", str(i)) not in started_ids
             )
-        ).scalars().all()
-        pub_grammar = db.execute(
-            select(GrammarPoint.id).where(
-                GrammarPoint.language_id == lang.id,
-                GrammarPoint.status == ContentStatus.published,
-                GrammarPoint.deleted_at.is_(None),
+            lessons_available += sum(
+                1 for i in st.grammar_ids if ("grammar", str(i)) not in started_ids
             )
-        ).scalars().all()
-        lessons_available = (
-            sum(1 for i in pub_vocab if ("vocabulary", str(i)) not in started_ids)
-            + sum(1 for i in pub_grammar if ("grammar", str(i)) not in started_ids)
-        )
 
     # Per-stage counts + WaniKani-style groups.
     stage_counts_map: dict[int, int] = {s: 0 for s in range(1, 10)}
@@ -331,6 +362,7 @@ def start_quiz(position: int, lesson_position: int, db: Session = Depends(get_db
     """Begin the post-lesson quiz. Items only enter the SRS once answered
     correctly here (WaniKani-style gate)."""
     module = _module_or_404(db, position)
+    _require_unlocked(db, user.id, module)
     try:
         session, prompts = lesson_svc.start_lesson_quiz(
             db, user_id=user.id, module=module, position=lesson_position,

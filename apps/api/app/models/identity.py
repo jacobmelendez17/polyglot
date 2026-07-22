@@ -85,3 +85,8 @@ class UserSettings(Base, TimestampMixin):
     intermissions_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     immersion_mode: Mapped[bool] = mapped_column(Boolean, default=False)
     dialect: Mapped[str] = mapped_column(String(20), default="latam_mx")
+    # Audio (slice 7). autoplay is opt-out because unexpected sound is hostile;
+    # voice is a hint the client matches against available system voices.
+    audio_autoplay: Mapped[bool] = mapped_column(Boolean, default=False)
+    audio_voice: Mapped[str] = mapped_column(String(60), default="")
+    audio_rate: Mapped[float] = mapped_column(Numeric(3, 2), default=1.0)

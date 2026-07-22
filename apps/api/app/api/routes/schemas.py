@@ -140,6 +140,7 @@ class QueuePromptOut(BaseModel):
     article: str | None = None
     part_of_speech: str = ""
     hint: str | None = None
+    audio: dict | None = None
 
 
 class SessionOut(BaseModel):
@@ -209,6 +210,7 @@ class PracticePromptOut(BaseModel):
     translation: str
     tense: str | None = None
     person: str | None = None
+    audio: dict | None = None
 
 
 class PracticeSessionOut(BaseModel):
@@ -220,7 +222,7 @@ class PracticeSessionOut(BaseModel):
 class PracticeAnswerRequest(BaseModel):
     item_type: str = Field(pattern="^(vocabulary|grammar)$")
     item_id: str
-    mode: str = Field(pattern="^(fill_blank|conjugation|weak_items)$")
+    mode: str = Field(pattern="^(fill_blank|conjugation|weak_items|listening)$")
     answer: str = Field(max_length=500)
     tense: str | None = Field(default=None, max_length=30)
     person: str | None = Field(default=None, max_length=30)
@@ -243,6 +245,7 @@ class QuizPromptOut(BaseModel):
     item_id: str
     shown: str
     hint: str = ""
+    audio: dict | None = None
 
 
 class QuizSessionOut(BaseModel):

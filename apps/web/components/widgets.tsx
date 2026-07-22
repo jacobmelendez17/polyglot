@@ -42,18 +42,27 @@ export function ActionButtons() {
   const { stats, loading } = useStats();
   const lessons = stats?.lessons_available ?? 0;
   const reviews = stats?.reviews_due ?? 0;
+  const learned = stats?.items_learned ?? 0;
+
+  // When no lessons are available it's usually because the next level is still
+  // locked — say so, rather than a bare "nothing right now".
+  const lessonsEmpty =
+    learned > 0
+      ? "keep reviewing to unlock the next level"
+      : "nothing available yet";
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <ActionButton
         href="/levels" kind="lessons" count={lessons} loading={loading}
         title="lessons" sub="learn new words & grammar"
-        bg="bg-terraza-pink" ready="ready to learn"
+        bg="bg-terraza-pink" ready="ready to learn" emptyText={lessonsEmpty}
       />
       <ActionButton
         href="/reviews" kind="reviews" count={reviews} loading={loading}
         title="reviews" sub="strengthen what you know"
         bg="bg-terraza-accent" ready="waiting for you"
+        emptyText="nothing due right now ~"
         emphasize
       />
     </div>
@@ -61,10 +70,11 @@ export function ActionButtons() {
 }
 
 function ActionButton({
-  href, count, loading, title, sub, bg, ready, emphasize,
+  href, count, loading, title, sub, bg, ready, emptyText, emphasize,
 }: {
   href: string; kind: string; count: number; loading: boolean;
-  title: string; sub: string; bg: string; ready: string; emphasize?: boolean;
+  title: string; sub: string; bg: string; ready: string;
+  emptyText: string; emphasize?: boolean;
 }) {
   const disabled = !loading && count === 0;
   const inner = (
@@ -83,7 +93,7 @@ function ActionButton({
       <div>
         <p className="text-sm opacity-80">{sub}</p>
         <p className="mt-2 text-xs tracking-label">
-          {loading ? "…" : disabled ? "nothing right now ~" : ready.toUpperCase()}
+          {loading ? "…" : disabled ? emptyText : ready.toUpperCase()}
         </p>
       </div>
       {/* subtle oversized glyph in the corner, WaniKani-ish flourish */}

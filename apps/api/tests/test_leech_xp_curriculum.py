@@ -1,5 +1,7 @@
 """Leech scoring, XP rules, and curriculum planning."""
 
+import math
+
 import pytest
 
 from app.domain.curriculum import (
@@ -167,47 +169,60 @@ def test_level_six_shape_still_plans(real_world="36 words, 3 batches"):
     assert sum(len(l.items) for l in lessons) == 36
 
 
-def test_unlock_requires_everything_at_familiar_one():
-    """WaniKani/BunPro-style gate: EVERY item must reach Familiar 1."""
+def test_unlock_requires_ninety_percent_at_familiar_one():
+    """WaniKani-style gate: 90% of the level must reach Familiar 1."""
     ok, prog = level_unlock_progress(grammar_stages=[5] * 12, vocab_stages=[5] * 48)
     assert ok
-    assert prog["vocab_required"] == 48
+    assert prog["vocab_required"] == math.ceil(48 * 0.9)   # 44
     assert prog["percent"] == 100
 
-    # one grammar point short -> still locked
-    not_ok, _ = level_unlock_progress(grammar_stages=[5] * 11 + [4], vocab_stages=[5] * 48)
+    # well short -> locked
+    not_ok, _ = level_unlock_progress(
+        grammar_stages=[5] * 12, vocab_stages=[5] * 20 + [1] * 28
+    )
     assert not not_ok
 
-    # one vocab word short -> still locked (this is the change from the old 75% rule)
-    one_short, prog2 = level_unlock_progress(
-        grammar_stages=[5] * 12, vocab_stages=[5] * 47 + [4]
+
+def test_ninety_percent_tolerates_a_few_stubborn_items():
+    """The point of 90%: a handful of leeches can't stall progression forever."""
+    # 44 of 48 words at Familiar 1 (4 stragglers) still unlocks
+    ok, _ = level_unlock_progress(
+        grammar_stages=[5] * 12, vocab_stages=[5] * 44 + [2] * 4,
     )
-    assert not one_short
-    assert prog2["remaining"] == 1
+    assert ok
+    # but 43 does not
+    not_ok, _ = level_unlock_progress(
+        grammar_stages=[5] * 12, vocab_stages=[5] * 43 + [2] * 5,
+    )
+    assert not not_ok
 
 
 def test_unlock_uses_actual_counts_not_assumed_48():
-    # Level 6 really has 36 words; all 36 must reach Familiar 1
+    # Level 6 really has 36 words; 90% of 36 = 33 (rounded up)
     ok, prog = level_unlock_progress(grammar_stages=[], vocab_stages=[5] * 36)
-    assert prog["vocab_required"] == 36
+    assert prog["vocab_required"] == math.ceil(36 * 0.9)
     assert ok
-    partial, prog2 = level_unlock_progress(grammar_stages=[], vocab_stages=[5] * 27 + [1] * 9)
+    partial, prog2 = level_unlock_progress(grammar_stages=[], vocab_stages=[5] * 20 + [1] * 16)
     assert not partial
-    assert prog2["vocab_at_familiar"] == 27
+    assert prog2["vocab_at_familiar"] == 20
 
 
 def test_unlock_progress_reports_percent_for_the_ui():
     _, prog = level_unlock_progress(grammar_stages=[5] * 5, vocab_stages=[5] * 5 + [1] * 5)
-    # 5/5 grammar + 5/10 vocab = 10 of 15 required
-    assert prog["percent"] == round(10 / 15 * 100)
-    assert prog["remaining"] == 5
+    # grammar: 5 of ceil(5*0.9)=5 required; vocab: 5 of ceil(10*0.9)=9 required
+    assert prog["grammar_required"] == 5
+    assert prog["vocab_required"] == 9
+    assert prog["remaining"] == 4
     assert prog["vocab_total"] == 10
 
 
 def test_unlock_ratio_is_configurable():
-    """The 100% rule is strict; the ratio stays adjustable if a leech ever wedges
-    someone's progression."""
-    ok, _ = level_unlock_progress(
+    """The threshold stays adjustable per-call for future tuning."""
+    strict, _ = level_unlock_progress(
+        grammar_stages=[], vocab_stages=[5] * 9 + [1], vocab_ratio=1.0,
+    )
+    assert not strict          # 100% would still block that one straggler
+    relaxed, _ = level_unlock_progress(
         grammar_stages=[], vocab_stages=[5] * 9 + [1], vocab_ratio=0.9,
     )
-    assert ok
+    assert relaxed

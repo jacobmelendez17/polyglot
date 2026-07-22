@@ -17,11 +17,13 @@ export interface LessonItem {
   pronunciation?: string; ipa?: string; part_of_speech?: string;
   meaning?: string; article?: string | null; gender?: string;
   structure?: string; explanation?: string;
+  audio?: import('./speech').AudioRef | null;
 }
 export interface Prompt {
   item_type: string; item_id: string; direction: string;
   srs_stage: number; prompt_kind: string; shown: string;
   article?: string | null; part_of_speech?: string; hint?: string | null;
+  audio?: import('./speech').AudioRef | null;
 }
 export interface Session { session_id: string; prompts: Prompt[]; }
 export interface AnswerResult {
@@ -99,6 +101,7 @@ export const STAGE_NAMES: Record<number, string> = {
 export interface PracticePrompt {
   item_type: string; item_id: string; mode: string;
   shown: string; translation: string; tense?: string | null; person?: string | null;
+  audio?: import('./speech').AudioRef | null;
 }
 export interface PracticeSession { session_id: string; mode: string; prompts: PracticePrompt[]; }
 export interface PracticeGrade {
@@ -122,10 +125,14 @@ export const PRACTICE_MODES = [
   { id: "fill_blank", title: "fill in the blank", desc: "complete sentences with the missing word", icon: "✎" },
   { id: "conjugation", title: "verb conjugation", desc: "conjugate verbs across tenses and persons", icon: "⇄" },
   { id: "weak_items", title: "weak items", desc: "drill the words that keep tripping you up", icon: "✦" },
+  { id: "listening", title: "listening", desc: "hear a word and type what you heard", icon: "♪" },
 ] as const;
 
 // ---- Lesson quiz ----
-export interface QuizPrompt { item_type: string; item_id: string; shown: string; hint: string; }
+export interface QuizPrompt {
+  item_type: string; item_id: string; shown: string; hint: string;
+  audio?: import('./speech').AudioRef | null;
+}
 export interface QuizSession { session_id: string; prompts: QuizPrompt[]; }
 export interface QuizAnswer {
   correct: boolean; expected: string; warnings: string[];

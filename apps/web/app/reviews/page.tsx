@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { AudioButton } from "@/components/audio-button";
 import { Header } from "@/components/header";
 import { Protected } from "@/components/protected";
 import { Button, Card, Input } from "@/components/ui";
@@ -150,7 +151,13 @@ function ReviewSession() {
           )}
         </span>
 
-        <p className="mt-5 text-3xl lowercase tracking-cozy">{prompt?.shown}</p>
+        <div className="mt-5 flex items-center justify-center gap-3">
+          <p className="text-3xl lowercase tracking-cozy">{prompt?.shown}</p>
+          {/* Only offer audio for the Spanish side — hearing the English is no help. */}
+          {prompt?.direction === "es_to_en" && (
+            <AudioButton audio={prompt?.audio} label="hear this word" />
+          )}
+        </div>
         {prompt?.article && (
           <p className="mt-1 text-sm text-terraza-soft">include the article</p>
         )}

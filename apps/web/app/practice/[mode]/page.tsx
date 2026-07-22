@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { AudioButton } from "@/components/audio-button";
 import { Header } from "@/components/header";
 import { Protected } from "@/components/protected";
 import { Button, Card, Input } from "@/components/ui";
@@ -128,18 +129,33 @@ function PracticeRunner() {
 
       <Card className="text-center">
         <span className="text-xs tracking-label text-terraza-soft">
-          {mode === "conjugation" ? "CONJUGATE" : mode === "fill_blank" ? "FILL THE BLANK" : "TRANSLATE"}
+          {mode === "conjugation" ? "CONJUGATE"
+            : mode === "fill_blank" ? "FILL THE BLANK"
+            : mode === "listening" ? "WHAT DID YOU HEAR?"
+            : "TRANSLATE"}
         </span>
-        <p className="mt-5 text-2xl lowercase tracking-cozy">{prompt?.shown}</p>
-        {prompt?.translation && mode !== "conjugation" && (
-          <p className="mt-2 text-sm text-terraza-soft">({prompt.translation})</p>
+
+        {mode === "listening" ? (
+          // The word is deliberately never shown — listening is the whole test.
+          <div className="mt-6 flex flex-col items-center gap-3">
+            <AudioButton audio={prompt?.audio} size="lg" autoPlay label="hear the word again" />
+            <p className="text-sm text-terraza-soft">tap to replay</p>
+          </div>
+        ) : (
+          <>
+            <p className="mt-5 text-2xl lowercase tracking-cozy">{prompt?.shown}</p>
+            {prompt?.translation && mode !== "conjugation" && (
+              <p className="mt-2 text-sm text-terraza-soft">({prompt.translation})</p>
+            )}
+          </>
         )}
 
         {phase === "asking" ? (
           <div className="mt-6">
             <Input ref={inputRef} value={answer} onChange={(e) => setAnswer(e.target.value)}
                    onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
-                   placeholder="escribe en español…" autoComplete="off" autoCorrect="off"
+                   placeholder={mode === "listening" ? "type what you heard…" : "escribe en español…"}
+                   autoComplete="off" autoCorrect="off"
                    autoCapitalize="off" spellCheck={false} aria-label="Your answer" />
             <Button onClick={submit} disabled={!answer.trim()} className="mt-4">check</Button>
           </div>
@@ -147,8 +163,14 @@ function PracticeRunner() {
           <div className="mt-6">
             <div className={`rounded-[14px] px-4 py-3 ${grade?.correct ? "bg-terraza-green" : "bg-terraza-pink"}`}>
               <p className="tracking-cozy">{grade?.correct ? "¡correcto! ✦" : "not quite"}</p>
-              {!grade?.correct && (
-                <p className="mt-1 text-sm">answer: <span className="tracking-cozy">{grade?.expected}</span></p>
+              {(!grade?.correct || mode === "listening") && (
+                <p className="mt-1 text-sm">
+                  {grade?.correct ? "you heard: " : "answer: "}
+                  <span className="tracking-cozy">{grade?.expected}</span>
+                </p>
+              )}
+              {mode === "listening" && prompt?.translation && (
+                <p className="mt-1 text-sm">({prompt.translation})</p>
               )}
               {grade?.perfect && <p className="mt-1 text-sm">perfect status reached! ✦</p>}
             </div>

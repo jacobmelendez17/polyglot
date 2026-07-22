@@ -432,3 +432,78 @@ def test_level_unlocks_only_when_everything_reaches_familiar(client, db, learner
     lv2 = next(l for l in levels if l["position"] == 2)
     assert lv2["unlocked"] is True
     assert lv2["unlock_progress"]["percent"] == 100
+
+
+# --- lessons_available is scoped to UNLOCKED levels ----------------------
+
+def _add_level(db, position: int, vocab_n: int):
+    """Add a published level with some published vocabulary."""
+    lang = db.execute(select(Language).where(Language.code == "es-MX")).scalar_one()
+    m = Module(language_id=lang.id, position=position, title=f"Level {position}",
+               status=ContentStatus.published)
+    db.add(m)
+    db.flush()
+    for i in range(vocab_n):
+        db.add(VocabularyItem(
+            language_id=lang.id, module_id=m.id, term=f"l{position}w{i}",
+            normalized_term=f"l{position}w{i}", primary_translation=f"l{position}word{i}",
+            part_of_speech="noun", status=ContentStatus.published, difficulty_rank=1,
+        ))
+    db.commit()
+    return m
+
+
+def test_lessons_available_counts_only_unlocked_levels(client, db, learner):
+    """The dashboard's lesson count must reflect what's actually reachable —
+    not the entire published curriculum."""
+    _add_level(db, 2, 30)
+    _add_level(db, 3, 30)
+
+    s = client.get("/api/v1/me/stats", headers=learner["headers"]).json()
+    # learner fixture has 4 vocab + 1 grammar in level 1; levels 2 and 3 are locked
+    assert s["lessons_available"] == 5
+    assert s["lessons_available"] != 65   # would be the "count everything" bug
+
+
+def test_lessons_available_grows_when_a_level_unlocks(client, db, learner):
+    _add_level(db, 2, 30)
+
+    before = client.get("/api/v1/me/stats", headers=learner["headers"]).json()
+    assert before["lessons_available"] == 5
+
+    # take level 1 to Familiar 1 so level 2 opens
+    _unlock_all(client, db, learner)
+    for p in db.execute(select(UserItemProgress)).scalars().all():
+        p.srs_stage = 5
+    db.commit()
+
+    after = client.get("/api/v1/me/stats", headers=learner["headers"]).json()
+    assert after["lessons_available"] == 30      # level 2's items are now reachable
+
+
+def test_locked_level_lessons_are_not_reachable_by_url(client, db, learner):
+    """The gate is server-side: navigating straight to a locked level fails."""
+    _add_level(db, 2, 5)
+    r = client.get("/api/v1/levels/2/lessons", headers=learner["headers"])
+    assert r.status_code == 403
+    assert r.json()["detail"]["error"]["code"] == "level_locked"
+
+    detail = client.get("/api/v1/levels/2/lessons/1", headers=learner["headers"])
+    assert detail.status_code == 403
+
+    quiz = client.post("/api/v1/levels/2/lessons/1/quiz", headers=learner["headers"])
+    assert quiz.status_code == 403
+
+    done = client.post("/api/v1/levels/2/lessons/1/complete", headers=learner["headers"],
+                       json={"idempotency_key": str(uuid.uuid4())})
+    assert done.status_code == 403
+
+
+def test_unlocked_level_lessons_are_reachable(client, db, learner):
+    _add_level(db, 2, 5)
+    _unlock_all(client, db, learner)
+    for p in db.execute(select(UserItemProgress)).scalars().all():
+        p.srs_stage = 5
+    db.commit()
+    r = client.get("/api/v1/levels/2/lessons", headers=learner["headers"])
+    assert r.status_code == 200

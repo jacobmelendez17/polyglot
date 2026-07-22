@@ -155,3 +155,58 @@ def test_complete_practice_session(client, db, practiced_user):
                     headers=practiced_user["headers"])
     assert r.status_code == 200
     assert r.json()["state"] == "completed"
+
+
+# --- listening practice ---------------------------------------------------
+
+def test_listening_session_speaks_without_showing_the_word(client, db, practiced_user):
+    r = client.post("/api/v1/practice/sessions?mode=listening",
+                    headers=practiced_user["headers"])
+    assert r.status_code == 200, r.text
+    prompts = r.json()["prompts"]
+    assert len(prompts) > 0
+    p = prompts[0]
+    # the whole point: the Spanish is never displayed, only spoken
+    assert p["shown"] == ""
+    assert p["audio"] is not None
+    assert p["audio"]["mode"] in ("browser_tts", "stored")
+    assert p["audio"]["text"]          # something to say
+
+
+def test_listening_expects_the_spanish_word(client, db, practiced_user):
+    session = client.post("/api/v1/practice/sessions?mode=listening",
+                          headers=practiced_user["headers"]).json()
+    p = session["prompts"][0]
+    spoken = p["audio"]["text"]        # the Spanish term that was read aloud
+    r = client.post(f"/api/v1/practice/sessions/{session['session_id']}/answers",
+                    headers=practiced_user["headers"],
+                    json={"item_type": p["item_type"], "item_id": p["item_id"],
+                          "mode": "listening", "answer": spoken,
+                          "idempotency_key": str(uuid.uuid4())})
+    assert r.status_code == 200, r.text
+    assert r.json()["correct"] is True
+
+
+def test_listening_rejects_the_english(client, db, practiced_user):
+    session = client.post("/api/v1/practice/sessions?mode=listening",
+                          headers=practiced_user["headers"]).json()
+    p = session["prompts"][0]
+    r = client.post(f"/api/v1/practice/sessions/{session['session_id']}/answers",
+                    headers=practiced_user["headers"],
+                    json={"item_type": p["item_type"], "item_id": p["item_id"],
+                          "mode": "listening", "answer": p["translation"],
+                          "idempotency_key": str(uuid.uuid4())}).json()
+    assert r["correct"] is False       # typing the meaning isn't hearing it
+
+
+def test_review_prompts_include_audio(client, db, practiced_user):
+    import datetime as _dt
+
+    from app.models.progress import UserItemProgress
+    for prog in db.execute(select(UserItemProgress)).scalars().all():
+        prog.next_review_at = _dt.datetime.now(tz=_dt.timezone.utc) - _dt.timedelta(minutes=1)
+    db.commit()
+    session = client.post("/api/v1/reviews/sessions",
+                          headers=practiced_user["headers"]).json()
+    assert session["prompts"], "expected due reviews"
+    assert any(p.get("audio") for p in session["prompts"])

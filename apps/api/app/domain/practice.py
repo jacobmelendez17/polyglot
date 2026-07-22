@@ -22,6 +22,7 @@ class PracticeMode(str, Enum):
     fill_blank = "fill_blank"
     conjugation = "conjugation"
     weak_items = "weak_items"
+    listening = "listening"      # hear it, type what you heard
 
 
 @dataclass(frozen=True)
@@ -73,6 +74,9 @@ def select_practice_pool(
         eligible = [c for c in candidates if c.has_example]
     elif mode is PracticeMode.conjugation:
         eligible = [c for c in candidates if c.is_verb]
+    elif mode is PracticeMode.listening:
+        # Anything with a spoken form works; vocabulary is always speakable.
+        eligible = [c for c in candidates if c.item_type == "vocabulary"]
     else:
         eligible = list(candidates)
     rng = random.Random(seed)

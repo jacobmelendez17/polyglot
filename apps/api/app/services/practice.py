@@ -15,6 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.domain.answer_check import CheckMode, check_answer, expected_from_item
+from app.domain.audio import StoredAsset, resolve_audio
 from app.domain.practice import (
     PracticeCandidate,
     PracticeMode,
@@ -25,7 +26,13 @@ from app.domain.practice import (
     select_practice_pool,
 )
 from app.domain.xp import XpKind, xp_for
-from app.models.curriculum import Sentence, SentenceLink, VerbMeta, VocabularyItem
+from app.models.curriculum import (
+    AudioAsset,
+    Sentence,
+    SentenceLink,
+    VerbMeta,
+    VocabularyItem,
+)
 from app.models.enums import ItemType, PracticeCategory
 from app.models.identity import UserSettings
 from app.models.progress import (
@@ -54,6 +61,8 @@ class PracticePrompt:
     # conjugation extras
     tense: str | None = None
     person: str | None = None
+    # how the client should produce sound for this prompt (None = silent)
+    audio: dict | None = None
 
 
 @dataclass
@@ -98,6 +107,23 @@ def _candidates(db: Session, user_id: uuid.UUID) -> list[PracticeCandidate]:
     return out
 
 
+def _audio_for(db: Session, text: str, *, content_id, content_type: str = "vocabulary") -> dict:
+    """Stored recording if one exists for this item, else browser speech."""
+    asset_row = db.execute(
+        select(AudioAsset).where(
+            AudioAsset.content_type == content_type,
+            AudioAsset.content_id == content_id,
+        ).limit(1)
+    ).scalar_one_or_none()
+    asset = None
+    if asset_row is not None:
+        asset = StoredAsset(
+            storage_path=asset_row.storage_path, locale=asset_row.locale,
+            voice_id=asset_row.voice_id, source=asset_row.source,
+        )
+    return resolve_audio(text, asset=asset).to_dict()
+
+
 def build_practice(
     db: Session, user_id: uuid.UUID, *, mode: str, limit: int = 10, seed: int = 0,
 ) -> list[PracticePrompt]:
@@ -127,6 +153,16 @@ def build_practice(
                 item_type=c.item_type, item_id=c.item_id, mode=mode,
                 shown=f"{cj.infinitive} — {tense}, {person}",
                 translation=v.primary_translation, tense=tense, person=person,
+            ))
+        elif pmode is PracticeMode.listening:
+            v = db.get(VocabularyItem, uuid.UUID(c.item_id))
+            if v is None:
+                continue
+            # The word itself is never shown — that's the whole point.
+            prompts.append(PracticePrompt(
+                item_type=c.item_type, item_id=c.item_id, mode=mode,
+                shown="", translation=v.primary_translation,
+                audio=_audio_for(db, v.term, content_id=v.id),
             ))
         else:
             # fill_blank and weak_items both use a cloze when an example exists,
@@ -198,6 +234,8 @@ def _derive_expected(db: Session, *, item_type: str, item_id: str, mode: str,
         cj = make_conjugation(v.term, vm.conjugations if vm else {},
                               tense=tense, person=person)
         return cj.answer if cj else v.term
+    if mode == "listening":
+        return v.term          # type what you heard, in Spanish
     if mode == "fill_blank":
         link = db.execute(
             select(SentenceLink).where(

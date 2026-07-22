@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { AudioButton } from "@/components/audio-button";
 import { Header } from "@/components/header";
 import { Protected } from "@/components/protected";
 import { Button, Card, Input } from "@/components/ui";
@@ -176,7 +177,10 @@ export default function LessonPage() {
 
             <Card className="text-center">
               <span className="text-xs tracking-label text-terraza-soft">WHAT DOES THIS MEAN?</span>
-              <p className="mt-5 text-3xl lowercase tracking-cozy">{queue[0].shown}</p>
+              <div className="mt-5 flex items-center justify-center gap-3">
+                <p className="text-3xl lowercase tracking-cozy">{queue[0].shown}</p>
+                <AudioButton audio={queue[0].audio} label="hear this word" />
+              </div>
               {queue[0].hint && (
                 <p className="mt-1 text-xs tracking-label text-terraza-soft">
                   {queue[0].hint.toUpperCase()}
@@ -229,10 +233,13 @@ function ItemCard({ item }: { item: LessonItem }) {
       <span className="text-xs tracking-label text-terraza-soft">
         {isGrammar ? "GRAMMAR" : (item.part_of_speech || "VOCABULARY").toUpperCase()}
       </span>
-      <p className="mt-4 text-3xl lowercase tracking-cozy">
-        {item.article ? <span className="text-terraza-soft">{item.article} </span> : null}
-        {item.term}
-      </p>
+      <div className="mt-4 flex items-center justify-center gap-3">
+        <p className="text-3xl lowercase tracking-cozy">
+          {item.article ? <span className="text-terraza-soft">{item.article} </span> : null}
+          {item.term}
+        </p>
+        <AudioButton audio={item.audio} label={`hear ${item.term}`} />
+      </div>
       <p className="mt-2 text-lg text-terraza-accent">{item.translation}</p>
       {item.pronunciation && (
         <p className="mt-3 text-sm text-terraza-soft">say it: {item.pronunciation}</p>
