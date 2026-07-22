@@ -6,6 +6,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 export interface Level {
   id: string; position: number; title: string;
   vocab_count: number; grammar_count: number; unlocked: boolean;
+  unlock_progress?: UnlockProgress | null;
 }
 export interface Lesson {
   position: number; kind: string; title: string;
@@ -122,3 +123,26 @@ export const PRACTICE_MODES = [
   { id: "conjugation", title: "verb conjugation", desc: "conjugate verbs across tenses and persons", icon: "⇄" },
   { id: "weak_items", title: "weak items", desc: "drill the words that keep tripping you up", icon: "✦" },
 ] as const;
+
+// ---- Lesson quiz ----
+export interface QuizPrompt { item_type: string; item_id: string; shown: string; hint: string; }
+export interface QuizSession { session_id: string; prompts: QuizPrompt[]; }
+export interface QuizAnswer {
+  correct: boolean; expected: string; warnings: string[];
+  typo_forgiven: boolean; already_recorded: boolean;
+}
+
+export const quiz = {
+  start: (level: number, lesson: number) =>
+    req<QuizSession>(`/api/v1/levels/${level}/lessons/${lesson}/quiz`, { method: "POST" }),
+  answer: (sessionId: string, body: {
+    item_type: string; item_id: string; answer: string; idempotency_key: string;
+  }) => req<QuizAnswer>(`/api/v1/quiz/${sessionId}/answers`,
+    { method: "POST", body: JSON.stringify(body) }),
+};
+
+export interface UnlockProgress {
+  grammar_at_familiar: number; grammar_required: number; grammar_total: number;
+  vocab_at_familiar: number; vocab_required: number; vocab_total: number;
+  percent: number; remaining: number;
+}

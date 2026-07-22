@@ -43,5 +43,5 @@ docs/           PLANNING.md — architecture, schema, SRS spec, phases
 
 ## Status
 
-Phase 3 core practice (fill-blank, conjugation, weak-items) + onboarding slides + wider dashboard
+Phase 3 practice + seeded practice data + strict WaniKani-style level gating + post-lesson quiz
 phased roadmap, definition of done, and open decisions.

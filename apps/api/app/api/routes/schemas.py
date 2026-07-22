@@ -100,6 +100,8 @@ class LevelOut(BaseModel):
     vocab_count: int
     grammar_count: int
     unlocked: bool
+    # How close the PREVIOUS level is to unlocking this one (None for level 1).
+    unlock_progress: dict | None = None
 
 
 class LessonOut(BaseModel):
@@ -124,6 +126,8 @@ class CompleteLessonOut(BaseModel):
     xp_awarded: int
     unlocked: int
     already_completed: bool
+    # How many items stayed out of the SRS because the quiz wasn't passed for them.
+    blocked_by_quiz: int = 0
 
 
 class QueuePromptOut(BaseModel):
@@ -230,3 +234,43 @@ class PracticeGradeOut(BaseModel):
     xp_awarded: int
     practice_stage: int | None = None
     perfect: bool = False
+
+
+# ---- Lesson quiz + unlock progress ----
+
+class QuizPromptOut(BaseModel):
+    item_type: str
+    item_id: str
+    shown: str
+    hint: str = ""
+
+
+class QuizSessionOut(BaseModel):
+    session_id: str
+    prompts: list[QuizPromptOut]
+
+
+class QuizAnswerRequest(BaseModel):
+    item_type: str = Field(pattern="^(vocabulary|grammar)$")
+    item_id: str
+    answer: str = Field(max_length=500)
+    idempotency_key: str
+
+
+class QuizAnswerOut(BaseModel):
+    correct: bool
+    expected: str
+    warnings: list[str] = []
+    typo_forgiven: bool = False
+    already_recorded: bool = False
+
+
+class UnlockProgressOut(BaseModel):
+    grammar_at_familiar: int
+    grammar_required: int
+    grammar_total: int
+    vocab_at_familiar: int
+    vocab_required: int
+    vocab_total: int
+    percent: int
+    remaining: int

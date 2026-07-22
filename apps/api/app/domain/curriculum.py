@@ -128,28 +128,46 @@ def _plan_fully_dispersed(
 # --- Level unlocking (PLANNING §5) ---------------------------------------
 
 FAMILIAR_1 = 5
-VOCAB_UNLOCK_RATIO = 0.75
+# WaniKani/BunPro-style gating: the next level stays locked until EVERY item in
+# the previous level has reached Familiar 1. (WaniKani itself uses 90%; this is
+# stricter by request. Lowering this ratio is the one-line escape hatch if a
+# single stubborn leech ever wedges progression.)
+VOCAB_UNLOCK_RATIO = 1.0
+GRAMMAR_UNLOCK_RATIO = 1.0
 
 
 def level_unlock_progress(
-    *, grammar_stages: list[int], vocab_stages: list[int]
+    *, grammar_stages: list[int], vocab_stages: list[int],
+    vocab_ratio: float = VOCAB_UNLOCK_RATIO,
+    grammar_ratio: float = GRAMMAR_UNLOCK_RATIO,
 ) -> tuple[bool, dict]:
-    """Next level unlocks at Familiar 1 on ALL grammar and 3/4 of vocabulary.
+    """Next level unlocks once every item in this level is at Familiar 1+.
 
-    Uses the actual item counts present, so Level 6's 36 words and the missing
+    Uses the ACTUAL item counts present, so Level 6's 36 words and the missing
     L6-L10 grammar don't wedge progression (PLANNING R-01, R-02, R-08).
+    Returns (unlocked, progress) where progress drives the UI's "you're 32/47
+    of the way there" display.
     """
     import math
 
     grammar_ok = sum(1 for s in grammar_stages if s >= FAMILIAR_1)
     vocab_ok = sum(1 for s in vocab_stages if s >= FAMILIAR_1)
-    grammar_needed = len(grammar_stages)                       # all of them
-    vocab_needed = math.ceil(len(vocab_stages) * VOCAB_UNLOCK_RATIO)
+    grammar_needed = math.ceil(len(grammar_stages) * grammar_ratio)
+    vocab_needed = math.ceil(len(vocab_stages) * vocab_ratio)
 
     unlocked = grammar_ok >= grammar_needed and vocab_ok >= vocab_needed
+
+    total_needed = grammar_needed + vocab_needed
+    total_ok = min(grammar_ok, grammar_needed) + min(vocab_ok, vocab_needed)
+    percent = round((total_ok / total_needed) * 100) if total_needed else 100
+
     return unlocked, {
         "grammar_at_familiar": grammar_ok,
         "grammar_required": grammar_needed,
+        "grammar_total": len(grammar_stages),
         "vocab_at_familiar": vocab_ok,
         "vocab_required": vocab_needed,
+        "vocab_total": len(vocab_stages),
+        "percent": percent,
+        "remaining": max(0, total_needed - total_ok),
     }

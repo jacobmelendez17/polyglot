@@ -45,9 +45,18 @@ def practiced_user(client, db):
                       json={"email": "p@example.com", "name": "Pia", "password": "supersecret1"}).json()["access_token"]
     headers = {"Authorization": f"Bearer {tok}"}
 
-    # learn all six via lesson completion
+    # learn all six: teach, pass the quiz (items only unlock once proven), complete
     lessons = client.get("/api/v1/levels/1/lessons", headers=headers).json()
     for l in lessons:
+        quiz = client.post(f"/api/v1/levels/1/lessons/{l['position']}/quiz", headers=headers)
+        if quiz.status_code == 200:
+            qbody = quiz.json()
+            for p in qbody["prompts"]:
+                item = db.get(VocabularyItem, uuid.UUID(p["item_id"]))
+                client.post(f"/api/v1/quiz/{qbody['session_id']}/answers", headers=headers,
+                            json={"item_type": p["item_type"], "item_id": p["item_id"],
+                                  "answer": item.primary_translation if item else "",
+                                  "idempotency_key": str(uuid.uuid4())})
         client.post(f"/api/v1/levels/1/lessons/{l['position']}/complete",
                     headers=headers, json={"idempotency_key": str(uuid.uuid4())})
     return {"headers": headers, "vocab_ids": ids}

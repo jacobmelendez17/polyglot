@@ -69,6 +69,29 @@ function LevelList() {
               <span className="text-sm text-terraza-soft">locked</span>
             )}
           </div>
+
+          {/* Locked levels show exactly how far off the previous level is. */}
+          {!l.unlocked && l.unlock_progress && (
+            <div className="mt-4 border-t border-terraza-dash pt-3">
+              <div className="flex items-baseline text-xs tracking-label text-terraza-soft">
+                <span>REACH FAMILIAR 1 ON EVERYTHING IN LEVEL {l.position - 1}</span>
+                <span className="ml-auto">{l.unlock_progress.percent}%</span>
+              </div>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-terraza-bg">
+                <div className="h-full rounded-full bg-terraza-gold transition-all"
+                     style={{ width: `${l.unlock_progress.percent}%` }} />
+              </div>
+              <p className="mt-2 text-sm text-terraza-soft">
+                {l.unlock_progress.vocab_at_familiar}/{l.unlock_progress.vocab_required} words
+                {l.unlock_progress.grammar_total > 0 && (
+                  <> · {l.unlock_progress.grammar_at_familiar}/{l.unlock_progress.grammar_required} grammar</>
+                )}
+                {l.unlock_progress.remaining > 0 && (
+                  <> · {l.unlock_progress.remaining} to go</>
+                )}
+              </p>
+            </div>
+          )}
         </Card>
       ))}
     </div>

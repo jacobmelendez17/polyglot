@@ -827,3 +827,48 @@ still goes straight to the dashboard.
 
 **Deferred:** TTS listening practice (needs the SpeechScoreProvider/TTS abstraction — its own
 slice), and the full practice-stage UI surfacing across all categories.
+
+---
+
+## Slice 5 — Practice data seed, strict level gating, post-lesson quiz (2026-07-19)
+
+**Practice data seed** (`app/db/seed_practice.py` + `app/db/seed_data/practice_data.py`):
+- 40 verb conjugation tables (present/preterite/future × 6 persons). Regular -ar/-er/-ir
+  forms generated from the stem (future correctly attaches to the full infinitive);
+  10 irregulars written out (ser, estar, tener, hacer, ir, querer, poder, pagar, llegar,
+  contar). Verified: hablar→hablo/hablaré, comer→comí, ser→soy.
+- Tags matching words `part_of_speech='verb'` — necessary because the source CSV leaves
+  PoS blank on 470/480 rows, so conjugation practice previously found nothing. A naive
+  "-ar/-er/-ir ending" heuristic was rejected: it misclassifies *ayer* (yesterday).
+- 42 example sentences with explicit `cloze_answer` links, written against words that
+  ACTUALLY exist in this curriculum (colours, adjectives, verbs, time words — the
+  curriculum has few concrete nouns). Seeder skips targets not in the DB.
+- Result: all three practice modes now produce content (fill_blank 42 sources,
+  conjugation 34 verbs, weak_items always).
+  Run: `docker compose exec api python -m app.db.seed_practice`
+
+**Strict level gating (WaniKani/BunPro-style):** `VOCAB_UNLOCK_RATIO` 0.75 → **1.0**, and
+grammar likewise. The next level stays locked until EVERY item in the previous level has
+reached Familiar 1. `level_unlock_progress` now also returns percent/remaining/totals, and
+`/levels` exposes `unlock_progress` so locked levels show "32/47 words · 15 to go".
+⚠️ Note: WaniKani itself uses 90%, not 100%. At 100% a single stubborn leech can stall
+progression indefinitely. The ratio is a named constant and a function parameter precisely
+so it can be relaxed without a refactor if that becomes a problem in practice.
+
+**Post-lesson quiz (the WaniKani gate).** Teaching an item is no longer proof of knowing it:
+- `POST /levels/{n}/lessons/{m}/quiz` starts a quiz session (reuses `ReviewSession.kind
+  = "lesson_quiz"`, which the schema already anticipated).
+- `POST /quiz/{session}/answers` grades ONE answer server-side against the item's stored
+  answers (the client never supplies the expected value).
+- `complete_lesson` now only unlocks items the learner answered correctly, and reports
+  `blocked_by_quiz`. Wrong answers aren't punished — they cycle to the back of the queue
+  to be retried, so the quiz is a gate, not a filter.
+- Frontend: the lesson page gained a quiz phase after the teaching cards, with a retry
+  queue and its own progress bar.
+
+**Tests: 170 backend** (+9: quiz gate incl. "no unlock without passing", retry-then-unlock,
+server-side grading; strict-unlock incl. one-item-short still locked; unlock-progress
+reporting) + 3 frontend. No migration. Zero drift.
+
+Also fixed packaging: `packages = ["app"]` → find-packages with `package-data` for the CSVs,
+so subpackages and seed data ship correctly.

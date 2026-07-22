@@ -21,6 +21,10 @@ from app.api.routes.schemas import (
     LessonOut,
     LevelOut,
     QueuePromptOut,
+    QuizAnswerOut,
+    QuizAnswerRequest,
+    QuizPromptOut,
+    QuizSessionOut,
     SessionOut,
     SrsStageCount,
     StatsOut,
@@ -86,23 +90,27 @@ def list_levels(db: Session = Depends(get_db), user: User = Depends(get_current_
             )
         ).scalar_one()
         # Level 1 is always open; later levels open as earlier ones are learned.
+        unlocked, progress = _level_unlock_state(db, user.id, lang.id, m.position)
         out.append(LevelOut(
             id=str(m.id), position=m.position, title=m.title,
             vocab_count=vcount, grammar_count=gcount,
-            unlocked=m.position == 1 or _level_unlocked(db, user.id, lang.id, m.position),
+            unlocked=unlocked, unlock_progress=progress,
         ))
     return out
 
 
-def _level_unlocked(db: Session, user_id: uuid.UUID, lang_id: uuid.UUID, position: int) -> bool:
+def _level_unlock_state(
+    db: Session, user_id: uuid.UUID, lang_id: uuid.UUID, position: int,
+) -> tuple[bool, dict | None]:
+    """(unlocked, progress-toward-unlocking). Level 1 is always open."""
     from app.domain.curriculum import level_unlock_progress
     if position <= 1:
-        return True
+        return True, None
     prev = db.execute(
         select(Module).where(Module.language_id == lang_id, Module.position == position - 1)
     ).scalar_one_or_none()
     if prev is None:
-        return False
+        return False, None
     vocab_ids = db.execute(
         select(VocabularyItem.id).where(
             VocabularyItem.module_id == prev.id,
@@ -116,18 +124,18 @@ def _level_unlocked(db: Session, user_id: uuid.UUID, lang_id: uuid.UUID, positio
         )
     ).scalars().all()
     if not vocab_ids and not gram_ids:
-        return False
+        return False, None
     prog = {
         (str(p.item_id)): p.srs_stage
         for p in db.execute(
             select(UserItemProgress).where(UserItemProgress.user_id == user_id)
         ).scalars().all()
     }
-    unlocked, _ = level_unlock_progress(
+    unlocked, progress = level_unlock_progress(
         grammar_stages=[prog.get(str(i), 0) for i in gram_ids],
         vocab_stages=[prog.get(str(i), 0) for i in vocab_ids],
     )
-    return unlocked
+    return unlocked, progress
 
 
 @router.get("/levels/{position}/lessons", response_model=list[LessonOut])
@@ -314,3 +322,40 @@ def stats(db: Session = Depends(get_db), user: User = Depends(get_current_user))
         stage_group_counts=stage_group_counts, stage_counts=stage_counts,
         forecast=buckets, next_review_at=next_review,
     )
+
+
+@router.post("/levels/{position}/lessons/{lesson_position}/quiz",
+             response_model=QuizSessionOut)
+def start_quiz(position: int, lesson_position: int, db: Session = Depends(get_db),
+               user: User = Depends(get_current_user)):
+    """Begin the post-lesson quiz. Items only enter the SRS once answered
+    correctly here (WaniKani-style gate)."""
+    module = _module_or_404(db, position)
+    try:
+        session, prompts = lesson_svc.start_lesson_quiz(
+            db, user_id=user.id, module=module, position=lesson_position,
+        )
+    except ValueError as exc:
+        db.rollback()
+        raise _err(str(exc), "not_found", 404) from exc
+    db.commit()
+    return QuizSessionOut(
+        session_id=str(session.id),
+        prompts=[QuizPromptOut(**p) for p in prompts],
+    )
+
+
+@router.post("/quiz/{session_id}/answers", response_model=QuizAnswerOut)
+def answer_quiz(session_id: str, body: QuizAnswerRequest,
+                db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    try:
+        out = lesson_svc.grade_quiz_answer(
+            db, user_id=user.id, session_id=uuid.UUID(session_id),
+            item_type=body.item_type, item_id=body.item_id, submitted=body.answer,
+            idempotency_key=uuid.UUID(body.idempotency_key),
+        )
+    except ValueError as exc:
+        db.rollback()
+        raise _err(str(exc), "quiz_error", 400) from exc
+    db.commit()
+    return QuizAnswerOut(**out)

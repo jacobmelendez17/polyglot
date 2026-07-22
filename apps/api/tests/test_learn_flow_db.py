@@ -78,6 +78,7 @@ def test_lesson_detail_returns_teaching_payload(client, learner):
 def test_completing_a_lesson_unlocks_srs_and_awards_xp(client, db, learner):
     lessons = client.get("/api/v1/levels/1/lessons", headers=learner["headers"]).json()
     pos = lessons[0]["position"]
+    _pass_quiz(client, learner["headers"], 1, pos, db)
     r = client.post(f"/api/v1/levels/1/lessons/{pos}/complete",
                     headers=learner["headers"],
                     json={"idempotency_key": str(uuid.uuid4())})
@@ -96,6 +97,7 @@ def test_completing_a_lesson_unlocks_srs_and_awards_xp(client, db, learner):
 
 def test_lesson_completion_is_idempotent(client, db, learner):
     key = str(uuid.uuid4())
+    _pass_quiz(client, learner["headers"], 1, 1, db)
     first = client.post("/api/v1/levels/1/lessons/1/complete",
                         headers=learner["headers"], json={"idempotency_key": key}).json()
     second = client.post("/api/v1/levels/1/lessons/1/complete",
@@ -107,9 +109,29 @@ def test_lesson_completion_is_idempotent(client, db, learner):
     assert total_xp == first["xp_awarded"]   # not double-awarded
 
 
+def _pass_quiz(client, headers, level, lesson_pos, db):
+    """Answer every quiz prompt correctly so the items are allowed into the SRS."""
+    quiz = client.post(f"/api/v1/levels/{level}/lessons/{lesson_pos}/quiz",
+                       headers=headers)
+    if quiz.status_code != 200:
+        return
+    body = quiz.json()
+    for p in body["prompts"]:
+        if p["item_type"] == "vocabulary":
+            item = db.get(VocabularyItem, uuid.UUID(p["item_id"]))
+            answer = item.primary_translation if item else ""
+        else:
+            item = db.get(GrammarPoint, uuid.UUID(p["item_id"]))
+            answer = item.translation if item else ""
+        client.post(f"/api/v1/quiz/{body['session_id']}/answers", headers=headers,
+                    json={"item_type": p["item_type"], "item_id": p["item_id"],
+                          "answer": answer, "idempotency_key": str(uuid.uuid4())})
+
+
 def _unlock_all(client, db, learner):
     lessons = client.get("/api/v1/levels/1/lessons", headers=learner["headers"]).json()
     for l in lessons:
+        _pass_quiz(client, learner["headers"], 1, l["position"], db)
         client.post(f"/api/v1/levels/1/lessons/{l['position']}/complete",
                     headers=learner["headers"], json={"idempotency_key": str(uuid.uuid4())})
     # make everything due now
@@ -274,3 +296,139 @@ def test_lessons_available_counts_unstarted_published_items(client, db, learner)
     # learner fixture published 4 vocab + 1 grammar, none started yet
     assert s["lessons_available"] == 5
     assert s["items_learned"] == 0
+
+
+# --- lesson quiz gate (WaniKani-style) -----------------------------------
+
+def test_quiz_returns_a_prompt_per_lesson_item(client, db, learner):
+    lessons = client.get("/api/v1/levels/1/lessons", headers=learner["headers"]).json()
+    pos = lessons[0]["position"]
+    detail = client.get(f"/api/v1/levels/1/lessons/{pos}", headers=learner["headers"]).json()
+    quiz = client.post(f"/api/v1/levels/1/lessons/{pos}/quiz", headers=learner["headers"])
+    assert quiz.status_code == 200
+    body = quiz.json()
+    assert len(body["prompts"]) == len(detail["items"])
+    # the quiz shows the Spanish and asks for the meaning — never leaks the answer
+    assert "expected" not in body["prompts"][0]
+    assert "translation" not in body["prompts"][0]
+
+
+def test_lesson_does_not_unlock_without_passing_the_quiz(client, db, learner):
+    """This is the core gate: teaching isn't proof, so nothing enters the SRS
+    until the learner answers correctly."""
+    r = client.post("/api/v1/levels/1/lessons/1/complete", headers=learner["headers"],
+                    json={"idempotency_key": str(uuid.uuid4())})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["unlocked"] == 0
+    assert body["blocked_by_quiz"] > 0
+    assert body["xp_awarded"] == 0
+    assert db.execute(select(func.count()).select_from(UserItemProgress)).scalar_one() == 0
+
+
+def test_wrong_quiz_answer_does_not_unlock_that_item(client, db, learner):
+    quiz = client.post("/api/v1/levels/1/lessons/1/quiz", headers=learner["headers"]).json()
+    p = quiz["prompts"][0]
+    r = client.post(f"/api/v1/quiz/{quiz['session_id']}/answers", headers=learner["headers"],
+                    json={"item_type": p["item_type"], "item_id": p["item_id"],
+                          "answer": "definitely not the answer",
+                          "idempotency_key": str(uuid.uuid4())})
+    assert r.status_code == 200
+    assert r.json()["correct"] is False
+
+    done = client.post("/api/v1/levels/1/lessons/1/complete", headers=learner["headers"],
+                       json={"idempotency_key": str(uuid.uuid4())}).json()
+    assert done["unlocked"] == 0            # the wrong answer proved nothing
+    assert done["blocked_by_quiz"] > 0
+
+
+def test_retrying_a_quiz_item_correctly_unlocks_it(client, db, learner):
+    """Wrong answers aren't punished — the learner just tries again."""
+    quiz = client.post("/api/v1/levels/1/lessons/1/quiz", headers=learner["headers"]).json()
+    p = next(x for x in quiz["prompts"] if x["item_type"] == "vocabulary")
+    # first attempt wrong
+    client.post(f"/api/v1/quiz/{quiz['session_id']}/answers", headers=learner["headers"],
+                json={"item_type": p["item_type"], "item_id": p["item_id"],
+                      "answer": "wrong", "idempotency_key": str(uuid.uuid4())})
+    # second attempt right
+    item = db.get(VocabularyItem, uuid.UUID(p["item_id"]))
+    r = client.post(f"/api/v1/quiz/{quiz['session_id']}/answers", headers=learner["headers"],
+                    json={"item_type": p["item_type"], "item_id": p["item_id"],
+                          "answer": item.primary_translation,
+                          "idempotency_key": str(uuid.uuid4())})
+    assert r.json()["correct"] is True
+
+    done = client.post("/api/v1/levels/1/lessons/1/complete", headers=learner["headers"],
+                       json={"idempotency_key": str(uuid.uuid4())}).json()
+    assert done["unlocked"] >= 1            # the retried item made it through
+
+
+def test_quiz_grades_server_side_and_accepts_typos(client, db, learner):
+    quiz = client.post("/api/v1/levels/1/lessons/1/quiz", headers=learner["headers"]).json()
+    p = next(x for x in quiz["prompts"] if x["item_type"] == "vocabulary")
+    item = db.get(VocabularyItem, uuid.UUID(p["item_id"]))
+    # one transposed letter should still pass, and the response reveals the answer
+    typo = item.primary_translation
+    if len(typo) > 4:
+        typo = typo[:2] + typo[3] + typo[2] + typo[4:]
+    r = client.post(f"/api/v1/quiz/{quiz['session_id']}/answers", headers=learner["headers"],
+                    json={"item_type": p["item_type"], "item_id": p["item_id"],
+                          "answer": typo, "idempotency_key": str(uuid.uuid4())}).json()
+    assert r["expected"] == item.primary_translation
+
+
+# --- level unlock gating -------------------------------------------------
+
+def test_level_one_is_always_unlocked_and_reports_no_progress(client, db, learner):
+    levels = client.get("/api/v1/levels", headers=learner["headers"]).json()
+    lv1 = next(l for l in levels if l["position"] == 1)
+    assert lv1["unlocked"] is True
+    assert lv1["unlock_progress"] is None
+
+
+def test_later_levels_report_unlock_progress(client, db, learner):
+    """A locked level tells the learner exactly how far off they are."""
+    lang = db.execute(select(Language).where(Language.code == "es-MX")).scalar_one()
+    m2 = Module(language_id=lang.id, position=2, title="Level 2",
+                status=ContentStatus.published)
+    db.add(m2)
+    db.flush()
+    db.add(VocabularyItem(
+        language_id=lang.id, module_id=m2.id, term="otra", normalized_term="otra",
+        primary_translation="another", status=ContentStatus.published, difficulty_rank=1,
+    ))
+    db.commit()
+
+    levels = client.get("/api/v1/levels", headers=learner["headers"]).json()
+    lv2 = next(l for l in levels if l["position"] == 2)
+    assert lv2["unlocked"] is False          # level 1 isn't at Familiar yet
+    assert lv2["unlock_progress"] is not None
+    assert lv2["unlock_progress"]["percent"] == 0
+    assert lv2["unlock_progress"]["remaining"] > 0
+
+
+def test_level_unlocks_only_when_everything_reaches_familiar(client, db, learner):
+    lang = db.execute(select(Language).where(Language.code == "es-MX")).scalar_one()
+    m2 = Module(language_id=lang.id, position=2, title="Level 2",
+                status=ContentStatus.published)
+    db.add(m2)
+    db.commit()
+
+    _unlock_all(client, db, learner)
+    rows = db.execute(select(UserItemProgress)).scalars().all()
+
+    # everything but one item at Familiar 1 -> still locked
+    for p in rows:
+        p.srs_stage = 5
+    rows[0].srs_stage = 4
+    db.commit()
+    levels = client.get("/api/v1/levels", headers=learner["headers"]).json()
+    assert next(l for l in levels if l["position"] == 2)["unlocked"] is False
+
+    # that last item reaches Familiar 1 -> unlocked
+    rows[0].srs_stage = 5
+    db.commit()
+    levels = client.get("/api/v1/levels", headers=learner["headers"]).json()
+    lv2 = next(l for l in levels if l["position"] == 2)
+    assert lv2["unlocked"] is True
+    assert lv2["unlock_progress"]["percent"] == 100
