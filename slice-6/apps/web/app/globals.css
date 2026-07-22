@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Terraza design tokens — inlined here so the web app is self-contained and
+   builds inside Docker (where sibling packages/ aren't in the container).
+   Source of truth is documented in packages/design-tokens/terraza.{css,json};
+   keep this block in sync with that file. */
+:root {
+  /* palette */
+  --lg-bg: #F7EFE7;        /* adobe cream */
+  --lg-bg-grid: #EFE2D4;   /* grid-paper lines */
+  --lg-ink: #3E4440;       /* soft charcoal-green */
+  --lg-soft: #96938A;      /* muted labels */
+  --lg-accent: #7FA69B;    /* dusty teal (primary action) */
+  --lg-accent-ink: #1F2E29;
+  --lg-pill: #E9DCCC;      /* active tab / neutral chip */
+  --lg-green: #BFD8CE;     /* success / SRS chips */
+  --lg-pink: #EBC3B4;      /* adobe blush accents */
+  --lg-gold: #EFCF8E;      /* marigold accents */
+  --lg-dash: #E1D3C2;      /* borders + dashed rules */
+  --lg-card: #FFFFFF;
+  --lg-danger: #C97B6B;    /* errors, keep muted */
+
+  /* type */
+  --lg-font-ui: "Shantell Sans", cursive;
+  --lg-font-empty: "Lora", serif;
+  --lg-tracking: 0.06em;
+  --lg-tracking-label: 0.18em;
+
+  /* shape & depth */
+  --lg-radius-card: 20px;
+  --lg-radius-pill: 999px;
+  --lg-shadow-card: 0 2px 0 var(--lg-dash);
+}
+
+body {
+  background-color: var(--lg-bg);
+  color: var(--lg-ink);
+  font-family: var(--lg-font-ui);
+  letter-spacing: var(--lg-tracking);
+  background-image:
+    linear-gradient(var(--lg-bg-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--lg-bg-grid) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

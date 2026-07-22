@@ -1,0 +1,59 @@
+name: ci
+on:
+  push: { branches: [main] }
+  pull_request:
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: apps/api } }
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: polyglot
+          POSTGRES_PASSWORD: polyglot_ci
+          POSTGRES_DB: polyglot
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U polyglot"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://polyglot:polyglot_ci@localhost:5432/polyglot
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install ".[dev]"
+      - run: ruff check app tests
+      - run: mypy app
+      - run: pytest -q
+      # Reversibility gate (PLANNING §26): upgrade, step back, re-upgrade must all succeed.
+      - name: migration round-trip
+        run: |
+          alembic upgrade head
+          alembic downgrade -1
+          alembic upgrade head
+      # Drift gate: models and migrations must agree (empty autogenerate).
+      - name: migration drift check
+        run: |
+          alembic revision --autogenerate -m _drift
+          if grep -qE "op\.(create_table|drop_table|add_column|drop_column|create_index)" alembic/versions/*_drift.py; then
+            echo "Schema drift: models and migrations disagree."; exit 1
+          fi
+          rm -f alembic/versions/*_drift.py
+
+  web:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: apps/web } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: apps/web/package-lock.json }
+      - run: npm install
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  # deploy jobs (Cloudflare Pages + Fly.io) depend on [api, web]; nothing ships if tests fail.
