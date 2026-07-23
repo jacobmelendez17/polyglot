@@ -939,3 +939,68 @@ contract, 4 listening incl. word-never-shown and English-rejected) + 3 frontend.
 
 **Phase 3 is complete.** Next: slice 8 (practice stages + item detail pages) or slice 9
 (guided tour + widget customization).
+
+---
+
+## Slice 8 — Practice stages surfaced in the UI, item detail pages (2026-07-22)
+
+**Bug fix: listening reps were advancing the wrong category.** `_practice_category()`
+mapped every practice mode to `sentences`, so listening practice never moved its own
+Uno..Cinco stage — it silently fed `sentences` instead. Fixed: `listening` mode now
+advances `PracticeCategory.listening`; `fill_blank`/`conjugation`/`weak_items` still
+share `sentences` (there's no dedicated mode for `speaking` yet — R-13).
+
+**24h stage gate, implemented for the first time.** PLANNING §5.5 always specified
+"minimum 24h between stage-ups," but `advance_practice_stage()` had no time input and
+advanced on every correct answer. It now takes `stage_reached_at`/`now`; the first-ever
+advance (stage 0, `stage_reached_at is None`) is never gated, matching the existing
+`test_correct_practice_awards_xp_and_advances_stage` expectation (0→1 immediately).
+
+**Overall "Perfect" status, wired end-to-end.** `perfect_at` existed on
+`UserItemProgress` since Slice 1b but nothing ever set it. `is_perfect_across()` checks
+every *shipped* category (`PERFECT_CATEGORIES = (sentences, listening)` — `speaking` is
+excluded until it has a practice mode, else Perfect would be unreachable for the whole
+MVP) against Cinco, plus the item's SRS stage being Fluent. Checked in `grade_practice`
+right after a stage advances. `PracticeGradeOut.perfect_overall` fires exactly once, the
+moment it's newly achieved, distinct from the existing per-category `perfect` flag
+(true on every correct answer once that one category is maxed).
+
+**New: `services/items.py` + `GET /me/items` + `GET /me/items/{type}/{id}/progress`.**
+The route PLANNING §3 always listed but never built. Per-item view assembles SRS state
+(stage, next review, leech state/score, accuracy computed from all-time `ReviewAnswer.
+original_correct` — not `total_incorrect`, which counts wrong *attempts* and can exceed
+the review count), the three practice-stage rows (with `live: false` on `speaking` so
+the UI can gray it out honestly), and up to 25 recent answers newest-first. History
+includes lesson-quiz answers too, since `grade_quiz_answer` already writes to the same
+`ReviewAnswer` table — a word's "full history" starts at its quiz, not its first review.
+`/me/items` returns every started item, leeches-then-weakest-stage first, for the list
+page. 404s (not silently empty) for items the user hasn't started yet.
+
+**Frontend:** `/items` — a sortable-by-need list, leech/perfect badges, Uno..Cinco pip
+row per item. `/items/[type]/[id]` — SRS card (stage, next review, accuracy, leech),
+practice-stage card (progress bar per category, "coming soon" for speaking, "next stage
+available in Xh" while gated), and a history feed (direction, correct/incorrect, undo
+tag, stage transition). Linked from the header nav, the dashboard's "tricky items" tile,
+and a new banner in the practice runner when `perfect_overall` fires.
+
+**Tests: 192 backend** (+4: gate/perfect-across domain cases; +3 DB: listening-advances-
+listening-not-sentences regression, gate holds-then-clears, perfect_at needs both
+categories + Fluent; +6 for the new `/me/items*` routes) + 3 frontend. No migration —
+`user_item_practice_stages` and `perfect_at` already existed in the schema, just unused.
+Zero drift.
+
+**Note for Jacob:** running this locally in Claude Code (vs. the browser session that
+did slices 1–7) needed a one-time environment fix — `apps/api` had no venv with deps
+installed, and `apps/web/node_modules` was missing `jest-environment-jsdom` despite it
+being in `package.json`. Created `apps/api/.venv` (gitignored, not committed) and ran
+`npm install` in `apps/web` to sync `node_modules` with the existing lockfile — no
+dependency versions changed. Also: `mypy app` in `apps/api` currently reports ~90
+pre-existing `strict = true` violations (mostly `dict`/`list` missing type args and
+route handlers missing return-type annotations) spread across files from every earlier
+slice, not introduced here — worth a cleanup slice if strict mypy is meant to gate CI.
+Separately, there's a stray tracked `slice-6/` directory at the repo root (committed in
+f995ca0) that looks like a leftover zip-extraction folder from the browser workflow —
+flagging in case you want it removed.
+
+**Next — slice 9:** guided tour + drag-to-customize dashboard, or slice 11 (email +
+password reset) if account lockout risk outweighs the polish work.

@@ -172,7 +172,14 @@ function PracticeRunner() {
               {mode === "listening" && prompt?.translation && (
                 <p className="mt-1 text-sm">({prompt.translation})</p>
               )}
-              {grade?.perfect && <p className="mt-1 text-sm">perfect status reached! ✦</p>}
+              {grade?.perfect_overall && prompt && (
+                <p className="mt-2 text-sm">
+                  ✦ perfect — this one&apos;s fully mastered.{" "}
+                  <Link href={`/items/${prompt.item_type}/${prompt.item_id}`} className="underline underline-offset-2">
+                    see its history
+                  </Link>
+                </p>
+              )}
             </div>
             <Button onClick={next} className="mt-5">continue →</Button>
           </div>

@@ -1,12 +1,16 @@
 """Practice domain logic: weak-item selection, cloze, conjugation, stages."""
 
+import datetime as dt
+
 from app.domain.practice import (
     MAX_PRACTICE_STAGE,
+    STAGE_GATE,
     PracticeCandidate,
     PracticeMode,
     advance_practice_stage,
     available_conjugation_cells,
     is_perfect,
+    is_perfect_across,
     make_cloze,
     make_conjugation,
     select_practice_pool,
@@ -100,3 +104,29 @@ def test_practice_stage_caps_at_cinco():
     assert advance_practice_stage(5, correct=True) == MAX_PRACTICE_STAGE
     assert is_perfect(5)
     assert not is_perfect(4)
+
+
+def test_practice_stage_first_advance_ignores_gate():
+    # stage_reached_at is None for a brand-new item — never gated.
+    now = dt.datetime(2026, 1, 1, tzinfo=dt.timezone.utc)
+    assert advance_practice_stage(0, correct=True, stage_reached_at=None, now=now) == 1
+
+
+def test_practice_stage_gated_within_24h():
+    reached = dt.datetime(2026, 1, 1, tzinfo=dt.timezone.utc)
+    soon = reached + dt.timedelta(hours=1)
+    assert advance_practice_stage(1, correct=True, stage_reached_at=reached, now=soon) == 1
+
+
+def test_practice_stage_advances_once_gate_clears():
+    reached = dt.datetime(2026, 1, 1, tzinfo=dt.timezone.utc)
+    later = reached + STAGE_GATE
+    assert advance_practice_stage(1, correct=True, stage_reached_at=reached, now=later) == 2
+
+
+def test_is_perfect_across_requires_every_shipped_category():
+    assert not is_perfect_across({"sentences": 5})
+    assert not is_perfect_across({"sentences": 5, "listening": 4})
+    assert is_perfect_across({"sentences": 5, "listening": 5})
+    # speaking has no mode yet, so it never blocks — and never counts either.
+    assert is_perfect_across({"sentences": 5, "listening": 5, "speaking": 0})

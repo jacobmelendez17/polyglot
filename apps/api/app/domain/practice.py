@@ -13,6 +13,7 @@ reshuffle a session.
 """
 from __future__ import annotations
 
+import datetime as dt
 import random
 from dataclasses import dataclass
 from enum import Enum
@@ -148,16 +149,37 @@ def available_conjugation_cells(conjugations: dict) -> list[tuple[str, str]]:
 # --- practice-stage progression (Uno..Cinco, PLANNING §10) ---------------
 
 MAX_PRACTICE_STAGE = 5
+STAGE_GATE = dt.timedelta(hours=24)   # "next stage available at +24h" per PLANNING §5.5
+
+# Categories with a live practice mode today. "speaking" is deferred post-MVP
+# (PLANNING R-13) — a word can't reach overall Perfect until it ships too.
+PERFECT_CATEGORIES = ("sentences", "listening")
 
 
-def advance_practice_stage(current: int, *, correct: bool) -> int:
-    """Practice stages only go up, and only on a correct answer. They cap at
-    Cinco. A wrong answer holds the stage (practice is low-stakes)."""
-    if correct:
-        return min(current + 1, MAX_PRACTICE_STAGE)
-    return current
+def advance_practice_stage(
+    current: int, *, correct: bool,
+    stage_reached_at: dt.datetime | None = None,
+    now: dt.datetime | None = None,
+) -> int:
+    """Practice stages only go up, only on a correct answer, and cap at Cinco.
+    A wrong answer holds the stage (practice is low-stakes). Once a stage is
+    reached, the NEXT stage-up is gated to at least 24h later — the first-ever
+    advance (stage_reached_at is None) is never gated."""
+    if not correct or current >= MAX_PRACTICE_STAGE:
+        return current
+    if stage_reached_at is not None and now is not None and now < stage_reached_at + STAGE_GATE:
+        return current
+    return current + 1
 
 
 def is_perfect(stage: int) -> bool:
-    """'Perfect' status = reached the top practice stage (PLANNING §10)."""
+    """A single category reached the top practice stage (PLANNING §10)."""
     return stage >= MAX_PRACTICE_STAGE
+
+
+def is_perfect_across(stage_by_category: dict[str, int]) -> bool:
+    """Overall 'Perfect' status: every SHIPPED category maxed (missing
+    categories count as stage 0, i.e. not perfect)."""
+    return all(
+        stage_by_category.get(c, 0) >= MAX_PRACTICE_STAGE for c in PERFECT_CATEGORIES
+    )

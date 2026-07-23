@@ -199,6 +199,134 @@ def test_listening_rejects_the_english(client, db, practiced_user):
     assert r["correct"] is False       # typing the meaning isn't hearing it
 
 
+# --- practice-stage category + 24h gate + overall perfect -----------------
+
+def test_listening_practice_advances_listening_category_not_sentences(client, db, practiced_user):
+    from app.models.enums import PracticeCategory
+    from app.models.progress import UserItemPracticeStage
+
+    session = client.post("/api/v1/practice/sessions?mode=listening",
+                          headers=practiced_user["headers"]).json()
+    p = session["prompts"][0]
+    spoken = p["audio"]["text"]
+    client.post(f"/api/v1/practice/sessions/{session['session_id']}/answers",
+               headers=practiced_user["headers"],
+               json={"item_type": p["item_type"], "item_id": p["item_id"],
+                     "mode": "listening", "answer": spoken, "idempotency_key": str(uuid.uuid4())})
+
+    listening_stage = db.execute(
+        select(UserItemPracticeStage).where(
+            UserItemPracticeStage.item_id == uuid.UUID(p["item_id"]),
+            UserItemPracticeStage.category == PracticeCategory.listening,
+        )
+    ).scalar_one_or_none()
+    sentences_stage = db.execute(
+        select(UserItemPracticeStage).where(
+            UserItemPracticeStage.item_id == uuid.UUID(p["item_id"]),
+            UserItemPracticeStage.category == PracticeCategory.sentences,
+        )
+    ).scalar_one_or_none()
+    assert listening_stage is not None and listening_stage.stage == 1
+    assert sentences_stage is None   # never touched by a listening rep
+
+
+def test_practice_stage_holds_within_24h_then_advances(client, db, practiced_user):
+    import datetime as _dt
+
+    from app.services import practice as practice_svc
+
+    session = client.post("/api/v1/practice/sessions?mode=weak_items",
+                          headers=practiced_user["headers"]).json()
+    p = session["prompts"][0]
+    t0 = _dt.datetime(2026, 1, 1, tzinfo=_dt.timezone.utc)
+    user_id = _user_id(db)
+
+    g1 = practice_svc.grade_practice(
+        db, user_id=user_id, item_type=p["item_type"], item_id=p["item_id"], mode="weak_items",
+        submitted=p["translation"], idempotency_key=uuid.uuid4(), now=t0,
+    )
+    db.commit()
+    assert g1.practice_stage == 1
+
+    # Same item, one hour later — still gated, stage holds.
+    g2 = practice_svc.grade_practice(
+        db, user_id=_user_id(db), item_type=p["item_type"], item_id=p["item_id"],
+        mode="weak_items", submitted=p["translation"], idempotency_key=uuid.uuid4(),
+        now=t0 + _dt.timedelta(hours=1),
+    )
+    db.commit()
+    assert g2.practice_stage == 1
+
+    # 24h later — gate clears.
+    g3 = practice_svc.grade_practice(
+        db, user_id=_user_id(db), item_type=p["item_type"], item_id=p["item_id"],
+        mode="weak_items", submitted=p["translation"], idempotency_key=uuid.uuid4(),
+        now=t0 + _dt.timedelta(hours=24),
+    )
+    db.commit()
+    assert g3.practice_stage == 2
+
+
+def _user_id(db):
+    from app.models.identity import User
+    return db.execute(select(User.id).where(User.email == "p@example.com")).scalar_one()
+
+
+def test_perfect_at_requires_both_shipped_categories_and_fluent_srs(client, db, practiced_user):
+    import datetime as _dt
+
+    from app.models.enums import PracticeCategory
+    from app.models.progress import UserItemPracticeStage
+    from app.services import practice as practice_svc
+
+    session = client.post("/api/v1/practice/sessions?mode=listening",
+                          headers=practiced_user["headers"]).json()
+    p = session["prompts"][0]
+    item_id = uuid.UUID(p["item_id"])
+    user_id = _user_id(db)
+
+    progress = db.execute(
+        select(UserItemProgress).where(
+            UserItemProgress.user_id == user_id, UserItemProgress.item_id == item_id,
+        )
+    ).scalar_one()
+    progress.srs_stage = 9   # Fluent
+    db.add(UserItemPracticeStage(
+        user_id=user_id, item_type=progress.item_type, item_id=item_id,
+        category=PracticeCategory.sentences, stage=4, stage_reached_at=None,
+    ))
+    db.add(UserItemPracticeStage(
+        user_id=user_id, item_type=progress.item_type, item_id=item_id,
+        category=PracticeCategory.listening, stage=4, stage_reached_at=None,
+    ))
+    db.commit()
+
+    now = _dt.datetime.now(tz=_dt.timezone.utc)
+    spoken = p["audio"]["text"]
+    grade = practice_svc.grade_practice(
+        db, user_id=user_id, item_type="vocabulary", item_id=str(item_id), mode="listening",
+        submitted=spoken, idempotency_key=uuid.uuid4(), now=now,
+    )
+    db.commit()
+    # listening just reached 5, but sentences is still at 4 — not perfect yet.
+    assert grade.practice_stage == 5
+    assert grade.perfect_overall is False
+
+    # weak_items (no example sentence for this item) falls back to translating
+    # INTO Spanish — the expected answer is the term itself, not the gloss.
+    term = db.get(VocabularyItem, item_id).term
+    grade2 = practice_svc.grade_practice(
+        db, user_id=user_id, item_type="vocabulary", item_id=str(item_id), mode="weak_items",
+        submitted=term, idempotency_key=uuid.uuid4(), now=now,
+    )
+    db.commit()
+    assert grade2.practice_stage == 5
+    assert grade2.perfect_overall is True
+
+    db.refresh(progress)
+    assert progress.perfect_at is not None
+
+
 def test_review_prompts_include_audio(client, db, practiced_user):
     import datetime as _dt
 

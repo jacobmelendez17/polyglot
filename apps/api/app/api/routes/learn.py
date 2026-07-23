@@ -18,14 +18,18 @@ from app.api.routes.schemas import (
     CompleteLessonOut,
     CompleteLessonRequest,
     ForecastBucket,
+    ItemProgressOut,
+    ItemSummaryOut,
     LessonDetailOut,
     LessonOut,
     LevelOut,
+    PracticeStageOut,
     QueuePromptOut,
     QuizAnswerOut,
     QuizAnswerRequest,
     QuizPromptOut,
     QuizSessionOut,
+    ReviewHistoryEntryOut,
     SessionOut,
     SrsStageCount,
     StatsOut,
@@ -41,6 +45,7 @@ from app.models.curriculum import GrammarPoint, Language, Module, VocabularyItem
 from app.models.enums import LeechState
 from app.models.identity import User
 from app.models.progress import UserItemProgress, XpEvent
+from app.services import items as items_svc
 from app.services import lessons as lesson_svc
 from app.services import reviews as review_svc
 
@@ -54,6 +59,10 @@ def _err(msg: str, code: str = "error", status_code: int = 400) -> HTTPException
 
 def _now() -> dt.datetime:
     return dt.datetime.now(tz=dt.timezone.utc)
+
+
+def _iso(value: dt.datetime | None) -> str | None:
+    return value.isoformat() if value else None
 
 
 def _module_or_404(db: Session, position: int) -> Module:
@@ -391,3 +400,54 @@ def answer_quiz(session_id: str, body: QuizAnswerRequest,
         raise _err(str(exc), "quiz_error", 400) from exc
     db.commit()
     return QuizAnswerOut(**out)
+
+
+@router.get("/me/items", response_model=list[ItemSummaryOut])
+def list_items(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Every item the user has started, leeches and shaky stages first."""
+    summaries = items_svc.list_item_summaries(db, user.id)
+    return [
+        ItemSummaryOut(
+            item_type=s.item_type, item_id=s.item_id, term=s.term, translation=s.translation,
+            level=s.level, srs_stage=s.srs_stage, srs_stage_name=s.srs_stage_name,
+            next_review_at=_iso(s.next_review_at), leech_state=s.leech_state,
+            practice_stage=s.practice_stage, perfect=s.perfect,
+        )
+        for s in summaries
+    ]
+
+
+@router.get("/me/items/{item_type}/{item_id}/progress", response_model=ItemProgressOut)
+def item_progress(item_type: str, item_id: str, db: Session = Depends(get_db),
+                  user: User = Depends(get_current_user)):
+    """A word's full history: SRS state, practice stages, and past answers."""
+    try:
+        view = items_svc.get_item_progress(db, user.id, item_type=item_type, item_id=item_id)
+    except items_svc.ItemError as exc:
+        raise _err(str(exc), "not_found", 404) from exc
+    return ItemProgressOut(
+        item_type=view.item_type, item_id=view.item_id, term=view.term,
+        translation=view.translation, part_of_speech=view.part_of_speech, level=view.level,
+        audio=view.audio, srs_stage=view.srs_stage, srs_stage_name=view.srs_stage_name,
+        next_review_at=_iso(view.next_review_at), total_reviews=view.total_reviews,
+        total_incorrect=view.total_incorrect, accuracy=view.accuracy,
+        leech_state=view.leech_state, leech_score=view.leech_score,
+        unlocked_at=_iso(view.unlocked_at), lesson_completed_at=_iso(view.lesson_completed_at),
+        fluent_at=_iso(view.fluent_at), perfect_at=_iso(view.perfect_at),
+        practice_stages=[
+            PracticeStageOut(
+                category=p.category, stage=p.stage, max_stage=p.max_stage,
+                stage_name=p.stage_name, stage_reached_at=_iso(p.stage_reached_at),
+                next_stage_at=_iso(p.next_stage_at), live=p.live,
+            )
+            for p in view.practice_stages
+        ],
+        history=[
+            ReviewHistoryEntryOut(
+                answered_at=_iso(h.answered_at), direction=h.direction, prompt_kind=h.prompt_kind,
+                correct=h.correct, undo_used=h.undo_used,
+                srs_stage_before=h.srs_stage_before, srs_stage_after=h.srs_stage_after,
+            )
+            for h in view.history
+        ],
+    )

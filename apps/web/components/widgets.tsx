@@ -225,13 +225,15 @@ export function LeechWidget() {
   const { stats, loading } = useStats();
   const leeches = stats?.leeches ?? 0;
   return (
-    <Card>
-      <WidgetLabel>TRICKY ITEMS</WidgetLabel>
-      <p className="text-3xl lowercase tracking-cozy">{loading ? "…" : leeches}</p>
-      <p className="mt-1 text-sm text-terraza-soft">
-        {leeches > 0 ? "items that keep tripping you up" : "nothing giving you trouble ~"}
-      </p>
-    </Card>
+    <Link href="/items" className="block h-full">
+      <Card className="transition-transform hover:-translate-y-0.5">
+        <WidgetLabel>TRICKY ITEMS</WidgetLabel>
+        <p className="text-3xl lowercase tracking-cozy">{loading ? "…" : leeches}</p>
+        <p className="mt-1 text-sm text-terraza-soft">
+          {leeches > 0 ? "items that keep tripping you up" : "nothing giving you trouble ~"}
+        </p>
+      </Card>
+    </Link>
   );
 }
 

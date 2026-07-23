@@ -236,6 +236,67 @@ class PracticeGradeOut(BaseModel):
     xp_awarded: int
     practice_stage: int | None = None
     perfect: bool = False
+    perfect_overall: bool = False
+
+
+# ---- Item progress (SRS + practice stages + history) ----
+
+class PracticeStageOut(BaseModel):
+    category: str
+    stage: int
+    max_stage: int
+    stage_name: str
+    stage_reached_at: str | None = None
+    next_stage_at: str | None = None
+    live: bool = True
+
+
+class ReviewHistoryEntryOut(BaseModel):
+    answered_at: str | None = None
+    direction: str
+    prompt_kind: str
+    correct: bool
+    undo_used: bool
+    srs_stage_before: int | None = None
+    srs_stage_after: int | None = None
+
+
+class ItemProgressOut(BaseModel):
+    item_type: str
+    item_id: str
+    term: str
+    translation: str
+    part_of_speech: str
+    level: int | None = None
+    audio: dict | None = None
+    srs_stage: int
+    srs_stage_name: str
+    next_review_at: str | None = None
+    total_reviews: int
+    total_incorrect: int
+    accuracy: float | None = None
+    leech_state: str
+    leech_score: float
+    unlocked_at: str | None = None
+    lesson_completed_at: str | None = None
+    fluent_at: str | None = None
+    perfect_at: str | None = None
+    practice_stages: list[PracticeStageOut]
+    history: list[ReviewHistoryEntryOut]
+
+
+class ItemSummaryOut(BaseModel):
+    item_type: str
+    item_id: str
+    term: str
+    translation: str
+    level: int | None = None
+    srs_stage: int
+    srs_stage_name: str
+    next_review_at: str | None = None
+    leech_state: str
+    practice_stage: int
+    perfect: bool
 
 
 # ---- Lesson quiz + unlock progress ----

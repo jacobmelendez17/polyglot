@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.domain import srs
 from app.domain.answer_check import CheckMode, check_answer, expected_from_item
 from app.domain.audio import StoredAsset, resolve_audio
 from app.domain.practice import (
@@ -21,6 +22,8 @@ from app.domain.practice import (
     PracticeMode,
     advance_practice_stage,
     available_conjugation_cells,
+    is_perfect,
+    is_perfect_across,
     make_cloze,
     make_conjugation,
     select_practice_pool,
@@ -73,6 +76,10 @@ class PracticeGrade:
     xp_awarded: int
     practice_stage: int | None = None
     perfect: bool = False
+    # True only the moment ALL shipped practice categories reach Cinco AND the
+    # item's SRS side is Fluent — distinct from `perfect`, which just means
+    # THIS category is maxed (and stays true on every later correct answer).
+    perfect_overall: bool = False
 
 
 def _candidates(db: Session, user_id: uuid.UUID) -> list[PracticeCandidate]:
@@ -215,8 +222,11 @@ def start_practice(
 
 
 def _practice_category(mode: str) -> PracticeCategory:
-    # fill_blank / conjugation / weak_items all live under the "sentences" family
-    # for the practice-stage system in this slice.
+    # Listening reps count toward the listening category; fill_blank / conjugation
+    # / weak_items all live under the "sentences" family for the practice-stage
+    # system (there's no dedicated mode for "speaking" yet — PLANNING R-13).
+    if mode == PracticeMode.listening.value:
+        return PracticeCategory.listening
     return PracticeCategory.sentences
 
 
@@ -292,7 +302,10 @@ def grade_practice(
         )
         db.add(ps)
         db.flush()
-    new_stage = advance_practice_stage(ps.stage, correct=result.correct)
+    new_stage = advance_practice_stage(
+        ps.stage, correct=result.correct,
+        stage_reached_at=ps.stage_reached_at, now=now,
+    )
     if new_stage != ps.stage:
         ps.stage = new_stage
         ps.stage_reached_at = now
@@ -307,11 +320,39 @@ def grade_practice(
         ))
     db.flush()
 
-    from app.domain.practice import is_perfect
+    # Overall "Perfect" status (PLANNING §10): every shipped practice category
+    # at Cinco AND the item's SRS side Fluent. Checked here — the moment any
+    # category's stage moves — rather than only from the review side, since
+    # practice is what actually advances these stages.
+    perfect_overall = False
+    if result.correct:
+        cat_rows = db.execute(
+            select(UserItemPracticeStage).where(
+                UserItemPracticeStage.user_id == user_id,
+                UserItemPracticeStage.item_type == ItemType(item_type),
+                UserItemPracticeStage.item_id == uuid.UUID(item_id),
+            )
+        ).scalars().all()
+        stage_by_category = {r.category.value: r.stage for r in cat_rows}
+        progress = db.execute(
+            select(UserItemProgress).where(
+                UserItemProgress.user_id == user_id,
+                UserItemProgress.item_type == ItemType(item_type),
+                UserItemProgress.item_id == uuid.UUID(item_id),
+            )
+        ).scalar_one_or_none()
+        if (progress is not None and progress.perfect_at is None
+                and srs.is_fluent(progress.srs_stage)
+                and is_perfect_across(stage_by_category)):
+            progress.perfect_at = now
+            perfect_overall = True
+    db.flush()
+
     return PracticeGrade(
         correct=result.correct, expected=expected_answer,
         warnings=result.warning_values, xp_awarded=amount,
         practice_stage=ps.stage, perfect=is_perfect(ps.stage),
+        perfect_overall=perfect_overall,
     )
 
 

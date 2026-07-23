@@ -107,6 +107,7 @@ export interface PracticeSession { session_id: string; mode: string; prompts: Pr
 export interface PracticeGrade {
   correct: boolean; expected: string; warnings: string[];
   xp_awarded: number; practice_stage: number | null; perfect: boolean;
+  perfect_overall: boolean;
 }
 
 export const practice = {
@@ -153,3 +154,42 @@ export interface UnlockProgress {
   vocab_at_familiar: number; vocab_required: number; vocab_total: number;
   percent: number; remaining: number;
 }
+
+// ---- Item progress (SRS + practice stages + history) ----
+
+export interface PracticeStage {
+  category: string; stage: number; max_stage: number; stage_name: string;
+  stage_reached_at: string | null; next_stage_at: string | null; live: boolean;
+}
+export interface ReviewHistoryEntry {
+  answered_at: string | null; direction: string; prompt_kind: string;
+  correct: boolean; undo_used: boolean;
+  srs_stage_before: number | null; srs_stage_after: number | null;
+}
+export interface ItemProgress {
+  item_type: string; item_id: string; term: string; translation: string;
+  part_of_speech: string; level: number | null;
+  audio?: import('./speech').AudioRef | null;
+  srs_stage: number; srs_stage_name: string; next_review_at: string | null;
+  total_reviews: number; total_incorrect: number; accuracy: number | null;
+  leech_state: string; leech_score: number;
+  unlocked_at: string | null; lesson_completed_at: string | null;
+  fluent_at: string | null; perfect_at: string | null;
+  practice_stages: PracticeStage[]; history: ReviewHistoryEntry[];
+}
+export interface ItemSummary {
+  item_type: string; item_id: string; term: string; translation: string;
+  level: number | null; srs_stage: number; srs_stage_name: string;
+  next_review_at: string | null; leech_state: string;
+  practice_stage: number; perfect: boolean;
+}
+
+export const items = {
+  list: () => req<ItemSummary[]>("/api/v1/me/items"),
+  progress: (type: string, id: string) =>
+    req<ItemProgress>(`/api/v1/me/items/${type}/${id}/progress`),
+};
+
+export const CATEGORY_LABELS: Record<string, string> = {
+  sentences: "sentences", listening: "listening", speaking: "speaking",
+};
