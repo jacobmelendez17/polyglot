@@ -27,8 +27,6 @@ from app.models.platform import DashboardWidget
 SPANISH_STAGES = ["Uno", "Dos", "Tres", "Cuatro", "Cinco"]
 TAGALOG_STAGES = ["Isa", "Dalawa", "Tatlo", "Apat", "Lima"]
 
-# SUPERSEDED by app.domain.widgets.CATALOG (slice 9), which the API serves
-# and _seed_widgets now mirrors. Kept only so older imports keep resolving.
 WIDGETS: list[tuple[str, str, bool]] = [
     ("progression", "Progression Card", True),
     ("journey", "Journey Card", True),
@@ -66,25 +64,12 @@ def _seed_languages(db: Session) -> None:
 
 
 def _seed_widgets(db: Session) -> None:
-    """Mirror the code catalog into the table.
-
-    `domain/widgets.py` is the source of truth: a widget only exists if there is
-    a component that can render it, which is a fact about the code, not the
-    database. This keeps the table readable and in step rather than letting the
-    two drift into disagreeing about what a dashboard can show.
-    """
-    from app.domain.widgets import CATALOG
-
-    for widget in CATALOG:
-        row = db.execute(
-            select(DashboardWidget).where(DashboardWidget.key == widget.key)
+    for key, title, is_default in WIDGETS:
+        exists = db.execute(
+            select(DashboardWidget).where(DashboardWidget.key == key)
         ).scalar_one_or_none()
-        if row is None:
-            db.add(DashboardWidget(key=widget.key, title=widget.title,
-                                   is_default=widget.default))
-        else:
-            row.title = widget.title
-            row.is_default = widget.default
+        if exists is None:
+            db.add(DashboardWidget(key=key, title=title, is_default=is_default))
 
 
 def _seed_owner(db: Session) -> None:

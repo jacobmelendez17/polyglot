@@ -11,7 +11,6 @@ import {
   newKey, practice, PRACTICE_MODES,
   type PracticeGrade, type PracticePrompt, type PracticeSession,
 } from "@/lib/learn-api";
-import { useEnterAdvance } from "@/lib/use-enter-advance";
 
 type Phase = "loading" | "asking" | "feedback" | "done" | "empty" | "error";
 
@@ -79,8 +78,6 @@ function PracticeRunner() {
       setPhase("asking");
     }
   }, [index, session]);
-
-  useEnterAdvance({ active: phase === "feedback", onAdvance: next });
 
   if (phase === "loading") return <p className="mt-10 text-center font-empty italic text-terraza-soft">un momento ~</p>;
   if (phase === "error") return <Card><p className="text-terraza-danger">{error}</p></Card>;

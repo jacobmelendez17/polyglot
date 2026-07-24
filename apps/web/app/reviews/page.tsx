@@ -9,6 +9,7 @@ import { Button, Card, Input } from "@/components/ui";
 import {
   learn, newKey, STAGE_NAMES, type AnswerResult, type Prompt, type Session,
 } from "@/lib/learn-api";
+import { useEnterAdvance } from "@/lib/use-enter-advance";
 
 type Phase = "loading" | "asking" | "feedback" | "done" | "empty" | "error";
 
@@ -32,6 +33,7 @@ function ReviewSession() {
   const [error, setError] = useState<string | null>(null);
   const [xp, setXp] = useState(0);
   const [correct, setCorrect] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -50,7 +52,10 @@ function ReviewSession() {
   const prompt: Prompt | null = session?.prompts[index] ?? null;
 
   const submit = useCallback(async () => {
-    if (!session || !prompt || !answer.trim()) return;
+    // The guard matters now that Enter submits: two fast keystrokes would
+    // otherwise post two answers with two different idempotency keys.
+    if (!session || !prompt || !answer.trim() || submitting) return;
+    setSubmitting(true);
     try {
       const r = await learn.submit(session.session_id, {
         item_type: prompt.item_type, item_id: prompt.item_id,
@@ -62,8 +67,10 @@ function ReviewSession() {
       if (r.xp_awarded) setXp((x) => x + r.xp_awarded);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not submit your answer.");
+    } finally {
+      setSubmitting(false);
     }
-  }, [session, prompt, answer]);
+  }, [session, prompt, answer, submitting]);
 
   const next = useCallback(() => {
     setAnswer("");
@@ -78,6 +85,9 @@ function ReviewSession() {
     }
   }, [index, session]);
 
+  // Enter answers, then Enter again continues.
+  useEnterAdvance({ active: phase === "feedback", onAdvance: next });
+
   async function undo() {
     if (!result?.answer_id) return;
     await learn.undo(result.answer_id, "marked correct by user");
@@ -89,7 +99,7 @@ function ReviewSession() {
     return <p className="mt-10 text-center font-empty italic text-terraza-soft">un momento ~</p>;
   }
   if (phase === "error") {
-    return <Card><p className="text-terraza-danger">{error}</p></Card>;
+    return <Card><p role="alert" className="text-terraza-danger">{error}</p></Card>;
   }
   if (phase === "empty") {
     return (
@@ -132,7 +142,7 @@ function ReviewSession() {
     <>
       <div className="mb-6">
         <div className="h-2 overflow-hidden rounded-full bg-terraza-pill">
-          <div className="h-full rounded-full bg-terraza-accent transition-all"
+          <div className="h-full rounded-full bg-terraza-accent transition-all motion-reduce:transition-none"
                style={{ width: `${(index / total) * 100}%` }} />
         </div>
         <div className="mt-2 flex text-xs tracking-label text-terraza-soft">
@@ -173,14 +183,19 @@ function ReviewSession() {
               ref={inputRef}
               value={answer}
               onChange={(e) => setAnswer(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); submit(); } }}
               placeholder={askingSpanish ? "escribe en español…" : "type in english…"}
               autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
               aria-label="Your answer"
+              aria-describedby="answer-hint"
+              disabled={submitting}
             />
-            <Button onClick={submit} disabled={!answer.trim()} className="mt-4">
-              check
+            <Button onClick={submit} disabled={!answer.trim() || submitting} className="mt-4">
+              {submitting ? "checking…" : "check"}
             </Button>
+            <p id="answer-hint" className="mt-3 text-xs text-terraza-soft">
+              press enter to check
+            </p>
           </div>
         ) : (
           <Feedback result={result!} onNext={next} onUndo={undo} />
@@ -202,9 +217,9 @@ function Feedback({
   return (
     <div className="mt-6">
       <div
-        className={`rounded-[14px] px-4 py-3 ${
-          ok ? "bg-terraza-green" : "bg-terraza-pink"
-        }`}
+        role="status"
+        aria-live="polite"
+        className={`rounded-[14px] px-4 py-3 ${ok ? "bg-terraza-green" : "bg-terraza-pink"}`}
       >
         <p className="tracking-cozy">{ok ? "¡correcto! ✦" : "not quite"}</p>
         {!ok && (
@@ -238,8 +253,10 @@ function Feedback({
             i was right (undo)
           </button>
         )}
-        <Button onClick={onNext}>continue →</Button>
+        <Button onClick={onNext} aria-keyshortcuts="Enter">continue →</Button>
       </div>
+
+      <p className="mt-3 text-xs text-terraza-soft">press enter to continue</p>
     </div>
   );
 }

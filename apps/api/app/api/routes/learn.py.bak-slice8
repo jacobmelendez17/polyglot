@@ -38,15 +38,15 @@ from app.api.routes.schemas import (
     UndoRequest,
 )
 from app.auth.deps import get_current_user
+from app.db.base import ContentStatus
 from app.db.session import get_db
 from app.domain import srs
-from app.models.curriculum import Language, Module
+from app.models.curriculum import GrammarPoint, Language, Module, VocabularyItem
 from app.models.enums import LeechState
 from app.models.identity import User
 from app.models.progress import UserItemProgress, XpEvent
 from app.services import items as items_svc
 from app.services import lessons as lesson_svc
-from app.services import levels as _levels_service
 from app.services import reviews as review_svc
 
 router = APIRouter(prefix="/api/v1", tags=["learn"])
@@ -117,19 +117,68 @@ class _LevelState:
 def _all_level_states(
     db: Session, user_id: uuid.UUID, lang_id: uuid.UUID,
 ) -> list[_LevelState]:
-    """Delegates to services.levels — one implementation of the unlock rule.
+    """Unlock state for every level, computed in one pass.
 
-    Slice 8 gave this logic two more consumers (item detail and the level
-    progression page), and three copies of a gate is how a gate quietly stops
-    agreeing with itself. The returned shape is unchanged.
+    Level 1 is always open; level N opens once level N-1 hits the Familiar-1
+    threshold. Everything is loaded up front (modules, published item ids, the
+    user's progress) so this doesn't fan out into a query per level.
     """
-    return [
-        _LevelState(
-            module=s.module, vocab_ids=s.vocab_ids, grammar_ids=s.grammar_ids,
-            unlocked=s.unlocked, progress=s.progress,
+    from app.domain.curriculum import level_unlock_progress
+
+    modules = db.execute(
+        select(Module).where(Module.language_id == lang_id).order_by(Module.position)
+    ).scalars().all()
+    if not modules:
+        return []
+
+    module_ids = [m.id for m in modules]
+    vocab_rows = db.execute(
+        select(VocabularyItem.id, VocabularyItem.module_id).where(
+            VocabularyItem.module_id.in_(module_ids),
+            VocabularyItem.status == ContentStatus.published,
+            VocabularyItem.deleted_at.is_(None),
         )
-        for s in _levels_service.all_level_states(db, user_id, lang_id)
-    ]
+    ).all()
+    grammar_rows = db.execute(
+        select(GrammarPoint.id, GrammarPoint.module_id).where(
+            GrammarPoint.module_id.in_(module_ids),
+            GrammarPoint.status == ContentStatus.published,
+            GrammarPoint.deleted_at.is_(None),
+        )
+    ).all()
+    vocab_by_module: dict[uuid.UUID, list[uuid.UUID]] = {m: [] for m in module_ids}
+    grammar_by_module: dict[uuid.UUID, list[uuid.UUID]] = {m: [] for m in module_ids}
+    for item_id, mod_id in vocab_rows:
+        vocab_by_module.setdefault(mod_id, []).append(item_id)
+    for item_id, mod_id in grammar_rows:
+        grammar_by_module.setdefault(mod_id, []).append(item_id)
+
+    stages = {
+        str(p.item_id): p.srs_stage
+        for p in db.execute(
+            select(UserItemProgress).where(UserItemProgress.user_id == user_id)
+        ).scalars().all()
+    }
+
+    states: list[_LevelState] = []
+    prev_state: _LevelState | None = None
+    for m in modules:
+        v_ids = vocab_by_module.get(m.id, [])
+        g_ids = grammar_by_module.get(m.id, [])
+        if prev_state is None:
+            unlocked, progress = True, None          # level 1 is always open
+        elif not prev_state.vocab_ids and not prev_state.grammar_ids:
+            unlocked, progress = False, None         # previous level has no content
+        else:
+            unlocked, progress = level_unlock_progress(
+                grammar_stages=[stages.get(str(i), 0) for i in prev_state.grammar_ids],
+                vocab_stages=[stages.get(str(i), 0) for i in prev_state.vocab_ids],
+            )
+        state = _LevelState(module=m, vocab_ids=v_ids, grammar_ids=g_ids,
+                            unlocked=unlocked, progress=progress)
+        states.append(state)
+        prev_state = state
+    return states
 
 
 @router.get("/levels/{position}/lessons", response_model=list[LessonOut])

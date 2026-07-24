@@ -4,7 +4,3 @@ from app.models.enums import *  # noqa: F401,F403
 from app.models.identity import *  # noqa: F401,F403
 from app.models.platform import *  # noqa: F401,F403
 from app.models.progress import *  # noqa: F401,F403
-
-# Slice 9: guided-tour state. Imported so Base.metadata knows the table
-# (Alembic autogenerate and the test schema both read from metadata).
-from app.models import tours as tours  # noqa: F401,E402
