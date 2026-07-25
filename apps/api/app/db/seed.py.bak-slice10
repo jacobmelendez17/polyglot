@@ -51,36 +51,7 @@ def seed(db: Session) -> None:
     _seed_languages(db)
     _seed_widgets(db)
     _seed_owner(db)
-    _seed_intermissions(db)
     db.commit()
-
-
-def _seed_intermissions(db: Session) -> None:
-    """Ship the early-level intermissions with the rest of the seed (§17).
-
-    Imported lazily so this module stays cheap to import, and wrapped because a
-    missing intermission is a cosmetic gap — it must never stop the seed that
-    creates the owner account and the languages.
-    """
-    try:
-        from app.db.seed_intermissions import INTERMISSIONS
-        from app.db.base import ContentStatus
-        from app.models.platform import Intermission
-
-        for title, body, trigger in INTERMISSIONS:
-            exists = db.execute(
-                select(Intermission).where(Intermission.title == title)
-            ).scalar_one_or_none()
-            if exists is None:
-                db.add(Intermission(
-                    title=title, body_rich=body, trigger=trigger,
-                    status=ContentStatus.published,
-                ))
-    except Exception:  # pragma: no cover - defensive
-        import logging
-        logging.getLogger(__name__).warning(
-            "intermission seed skipped", exc_info=True
-        )
 
 
 def _seed_languages(db: Session) -> None:

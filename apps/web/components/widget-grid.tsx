@@ -10,6 +10,10 @@
 //
 // Changes save immediately and optimistically. A failed save reverts the grid
 // to what the server last confirmed rather than leaving the two out of step.
+//
+// Slice 10: the customize controls sit BELOW the grid. Customizing is something
+// you do occasionally; reading your dashboard is what you came for, and the
+// controls were pushing the content down every time.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -127,56 +131,23 @@ export function WidgetGrid() {
     apply(next, moveAnnouncement(titleFor(key), targetIndex, next.length));
   }
 
+  async function reset() {
+    setSaveState("saving");
+    try {
+      const fresh = await dashboard.reset();
+      confirmed.current = fresh.layout.widgets;
+      setConfig(fresh);
+      setSaveState("saved");
+      setAnnouncement("Dashboard reset to the default layout");
+    } catch {
+      setSaveState("error");
+    }
+  }
+
   return (
     <section aria-label="Dashboard widgets">
-      <div className="mb-3 flex flex-wrap items-center gap-3">
-        <button
-          data-tour="customize"
-          onClick={() => { setEditing((e) => !e); setAnnouncement(""); }}
-          aria-pressed={editing}
-          className={`rounded-full px-5 py-2 text-sm tracking-cozy transition-transform duration-200 hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0 ${
-            editing ? "bg-terraza-accent text-terraza-accentInk" : "bg-terraza-pill"
-          }`}
-        >
-          {editing ? "done customizing" : "customize dashboard"}
-        </button>
-
-        {editing && (
-          <>
-            <AddMenu
-              options={addable}
-              onAdd={(entry) =>
-                apply(addWidget(widgets, entry), `${entry.title} added`)
-              }
-            />
-            <button
-              onClick={async () => {
-                setSaveState("saving");
-                try {
-                  const reset = await dashboard.reset();
-                  confirmed.current = reset.layout.widgets;
-                  setConfig(reset);
-                  setSaveState("saved");
-                  setAnnouncement("Dashboard reset to the default layout");
-                } catch {
-                  setSaveState("error");
-                }
-              }}
-              className="rounded-full bg-terraza-pill px-5 py-2 text-sm tracking-cozy"
-            >
-              reset to default
-            </button>
-          </>
-        )}
-
-        <span className="ml-auto text-xs tracking-label text-terraza-soft">
-          {saveState === "saving" && "saving…"}
-          {saveState === "saved" && "saved ✦"}
-          {saveState === "error" && (
-            <span className="text-terraza-danger">not saved</span>
-          )}
-        </span>
-      </div>
+      {/* Live region: keyboard moves are otherwise invisible to a screen reader. */}
+      <p aria-live="polite" className="sr-only">{announcement}</p>
 
       {editing && (
         <p className="mb-3 text-sm text-terraza-soft">
@@ -184,16 +155,14 @@ export function WidgetGrid() {
         </p>
       )}
 
-      {/* Live region: keyboard moves are otherwise invisible to a screen reader. */}
-      <p aria-live="polite" className="sr-only">{announcement}</p>
-
+      {/* ---- the grid ---- */}
       {widgets.length === 0 ? (
         <Card>
           <p className="text-center font-empty italic text-terraza-soft">
             your dashboard is empty ~
           </p>
           <p className="mt-2 text-center text-sm text-terraza-soft">
-            use “customize dashboard” to add the cards you want back.
+            use “customize dashboard” below to add the cards you want back.
           </p>
         </Card>
       ) : (
@@ -238,6 +207,45 @@ export function WidgetGrid() {
           })}
         </ul>
       )}
+
+      {/* ---- controls, below the content they act on ---- */}
+      <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-terraza-dash pt-5">
+        <button
+          data-tour="customize"
+          onClick={() => { setEditing((e) => !e); setAnnouncement(""); }}
+          aria-pressed={editing}
+          className={`rounded-full px-5 py-2 text-sm tracking-cozy transition-transform duration-200 hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0 ${
+            editing ? "bg-terraza-accent text-terraza-accentInk" : "bg-terraza-pill"
+          }`}
+        >
+          {editing ? "done customizing" : "customize dashboard"}
+        </button>
+
+        {editing && (
+          <>
+            <AddMenu
+              options={addable}
+              onAdd={(entry) =>
+                apply(addWidget(widgets, entry), `${entry.title} added`)
+              }
+            />
+            <button
+              onClick={reset}
+              className="rounded-full bg-terraza-pill px-5 py-2 text-sm tracking-cozy"
+            >
+              reset to default
+            </button>
+          </>
+        )}
+
+        <span className="ml-auto text-xs tracking-label text-terraza-soft">
+          {saveState === "saving" && "saving…"}
+          {saveState === "saved" && "saved ✦"}
+          {saveState === "error" && (
+            <span className="text-terraza-danger">not saved</span>
+          )}
+        </span>
+      </div>
     </section>
   );
 }
@@ -318,9 +326,10 @@ function AddMenu({
         add a card ({options.length})
       </button>
       {open && (
+        // Opens upward: the bar now sits at the bottom of the page.
         <div
           role="menu"
-          className="absolute left-0 z-20 mt-2 w-72 rounded-card border border-terraza-dash bg-terraza-card p-1 shadow-lg"
+          className="absolute bottom-full left-0 z-20 mb-2 w-72 rounded-card border border-terraza-dash bg-terraza-card p-1 shadow-lg"
         >
           {options.map((o) => (
             <button

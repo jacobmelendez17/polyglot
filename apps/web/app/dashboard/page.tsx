@@ -1,6 +1,8 @@
 "use client";
 
+import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
+import { IntermissionGate } from "@/components/intermission-modal";
 import { Protected } from "@/components/protected";
 import { GuidedTour } from "@/components/tour";
 import { WidgetGrid } from "@/components/widget-grid";
@@ -18,6 +20,7 @@ export default function DashboardPage() {
         </div>
 
         <div className="mt-4">
+          {/* The customize controls live at the bottom of this grid now. */}
           <WidgetGrid />
         </div>
 
@@ -25,6 +28,12 @@ export default function DashboardPage() {
           <GuidedTour />
         </div>
       </main>
+
+      {/* Threshold intermissions ("you've learned 25 items") fire here, since
+          the dashboard is where a learner lands after finishing anything. */}
+      <IntermissionGate event="progress" />
+
+      <Footer />
     </Protected>
   );
 }
