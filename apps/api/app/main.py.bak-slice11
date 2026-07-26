@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import account, admin, admin_content, auth, content, dashboard, decks, dev_sandbox, health, items, learn, practice, subscriptions
+from app.api.routes import admin, admin_content, auth, content, dashboard, health, items, learn, practice
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 
@@ -25,14 +25,10 @@ def create_app() -> FastAPI:
     )
     app.include_router(health.router)
     app.include_router(auth.router)
-    app.include_router(account.router)
-    app.include_router(decks.router)
     app.include_router(admin.router)
     app.include_router(content.router)
     app.include_router(admin_content.router)
     app.include_router(learn.router)
-    app.include_router(subscriptions.router)
-    app.include_router(dev_sandbox.router)
     app.include_router(practice.router)
     app.include_router(dashboard.router)
     app.include_router(items.router)

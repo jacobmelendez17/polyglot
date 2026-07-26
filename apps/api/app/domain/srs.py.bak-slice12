@@ -86,19 +86,14 @@ def apply_srs(stage: int, wrong_answer_count: int) -> int:
 
 
 def next_review_at(
-    stage: int, now: dt.datetime, *, is_leech: bool = False, scale: float = 1.0
+    stage: int, now: dt.datetime, *, is_leech: bool = False
 ) -> dt.datetime | None:
-    # `scale` is the dev-mode time multiplier (1.0 = real intervals). It lives
-    # here, at the single point that turns a stage into a schedule, so dev mode
-    # never becomes a second code path — see app/domain/dev_mode.py.
     """When this item should next surface. None once Fluent (leaves the queue)."""
     interval = INTERVALS.get(stage)
     if interval is None:
         return None
     if is_leech:
         interval = dt.timedelta(seconds=interval.total_seconds() * LEECH_INTERVAL_MULTIPLIER)
-    if scale != 1.0:
-        interval = dt.timedelta(seconds=interval.total_seconds() * scale)
     return now + interval
 
 

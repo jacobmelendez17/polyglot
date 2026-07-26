@@ -30,12 +30,6 @@ services:
     volumes: ["./apps/api:/app"]
     # entrypoint runs migrations + seed, then starts uvicorn
     command: ["./entrypoint.sh"]
-    environment:
-      # Slice 11: route outgoing mail to Mailpit (view at http://localhost:8025).
-      EMAIL_BACKEND: smtp
-      SMTP_HOST: mailpit
-      SMTP_PORT: "1025"
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
 
   web:
     build: ./apps/web

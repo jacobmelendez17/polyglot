@@ -36,19 +36,6 @@ from app.models.progress import (
 )
 
 
-def _dev_scale(db, user_id) -> float:
-    """Dev-mode SRS time multiplier for this user (1.0 for everyone normally).
-
-    Read here so review scheduling honours the admin sandbox without threading a
-    flag through every caller (slice 12).
-    """
-    try:
-        from app.services import dev_sandbox as _dev
-        return _dev.active_scale(db, user_id=user_id)
-    except Exception:  # pragma: no cover - dev mode must never break reviews
-        return 1.0
-
-
 def _now() -> dt.datetime:
     return dt.datetime.now(tz=dt.timezone.utc)
 
@@ -398,7 +385,7 @@ def undo_answer(db: Session, *, user_id: uuid.UUID, answer_id: uuid.UUID,
         if progress is not None and answer.srs_stage_before is not None:
             corrected = srs.apply_srs(answer.srs_stage_before, wrong)
             progress.srs_stage = corrected
-            progress.next_review_at = srs.next_review_at(corrected, now, scale=_dev_scale(db, user_id))
+            progress.next_review_at = srs.next_review_at(corrected, now)
             for a in answers:
                 a.srs_stage_after = corrected
     db.flush()

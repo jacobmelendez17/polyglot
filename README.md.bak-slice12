@@ -43,6 +43,6 @@ docs/           PLANNING.md — architecture, schema, SRS spec, phases
 
 ## Status
 
-Phase 5 in progress — Stripe subscriptions and the paywall (level 1 free),
-plus an admin dev sandbox for troubleshooting SRS at speed.
+Phase 4 COMPLETE. Cross-cutting: real email delivery, working password
+reset, and email verification. Decks browser and a card-grid levels page.
 phased roadmap, definition of done, and open decisions.

@@ -2,10 +2,10 @@
 
 // Site footer (spec §21).
 //
-// Several of these destinations don't exist yet. Rather than link to a 404, the
-// unbuilt ones render as plain text with a quiet "soon" marker — a link that
-// goes nowhere is worse than an honest gap, and this way the footer's shape is
-// settled now and each page just flips a flag when it ships.
+// Slice 12: the footer now has a faded-white background (bg-white/70 with a blur)
+// instead of being fully transparent — it reads as a distinct band at the bottom
+// of the page while still letting a hint of the page tint through. Pricing is now
+// a real destination, so it graduates from a SOON stub to a link.
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -33,7 +33,7 @@ export function Footer() {
   const product: FooterLink[] = [
     { key: "footer.features", href: null },
     { key: "footer.how", href: null },
-    { key: "footer.pricing", href: null },
+    { key: "footer.pricing", href: "/pricing" },
     { key: "footer.changelog", href: "/changelog", badge: unread },
   ];
 
@@ -45,7 +45,7 @@ export function Footer() {
   ];
 
   return (
-    <footer className="mt-16 border-t border-terraza-dash">
+    <footer className="mt-16 border-t border-terraza-dash bg-white/70 backdrop-blur-sm">
       <div className="mx-auto flex max-w-7xl flex-wrap gap-10 px-4 py-10">
         <div className="mr-auto max-w-xs">
           <p className="text-lg lowercase tracking-cozy">

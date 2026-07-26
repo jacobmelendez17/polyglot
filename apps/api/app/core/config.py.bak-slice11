@@ -20,25 +20,6 @@ class Settings(BaseSettings):
     # via the AUTH_SECRET env var; the default is for local dev only.
     auth_secret: str = "dev-only-change-me-in-production"
 
-    # Email (slice 11). No SMTP host → console backend, so a fresh checkout runs
-    # the reset flow without any mail setup. Mailpit locally; a real relay in prod.
-    email_backend: str = ""          # "", "console", "memory", or "smtp"
-    smtp_host: str = ""
-    smtp_port: int = 1025
-    smtp_username: str = ""
-    smtp_password: str = ""
-    smtp_use_tls: bool = False
-    email_from: str = "polyglot <no-reply@polyglot.local>"
-    # Where the reset/verify links point (the browser-facing app URL).
-    frontend_url: str = "http://localhost:3000"
-
-    # Stripe (slice 12). Empty secret → the fake billing provider, so the whole
-    # subscribe/webhook/entitlement flow runs locally with no Stripe account.
-    stripe_secret_key: str = ""
-    stripe_webhook_secret: str = ""
-    stripe_price_month: str = ""
-    stripe_price_year: str = ""
-
     @property
     def cors_origins(self) -> list[str]:
         return [o.strip() for o in self.api_cors_origins.split(",") if o.strip()]

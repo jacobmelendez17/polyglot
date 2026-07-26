@@ -12,6 +12,3 @@ from app.models import tours as tours  # noqa: F401,E402
 # Slice 11: email + password reset tokens. Imported so Base.metadata
 # knows the tables (autogenerate + test schema read from metadata).
 from app.models import email_tokens as email_tokens  # noqa: F401,E402
-
-# Slice 12: subscriptions. Imported so Base.metadata knows the table.
-from app.models import subscriptions as subscriptions  # noqa: F401,E402

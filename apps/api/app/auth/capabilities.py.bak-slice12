@@ -28,7 +28,6 @@ class Capability(str, enum.Enum):
     permanent_delete_approve = "permanent_delete_approve"
     # admin surface access (feedback, audit logs, dashboards)
     admin_panel = "admin_panel"
-    dev_panel = "dev_panel"
     feedback_manage = "feedback_manage"
     audit_view = "audit_view"
 
@@ -62,7 +61,6 @@ ROLE_CAPABILITIES: dict[UserRole, frozenset[Capability]] = {
         Capability.admin_panel,
         Capability.feedback_manage,
         Capability.audit_view,
-        Capability.dev_panel,
     }),
     UserRole.owner: frozenset({
         *_CONTENT_CAPS,
@@ -73,7 +71,6 @@ ROLE_CAPABILITIES: dict[UserRole, frozenset[Capability]] = {
         Capability.admin_panel,
         Capability.feedback_manage,
         Capability.audit_view,
-        Capability.dev_panel,
     }),
 }
 

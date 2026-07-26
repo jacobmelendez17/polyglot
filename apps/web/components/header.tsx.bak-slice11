@@ -22,8 +22,8 @@ export function Header() {
           <Link href="/levels" data-tour="nav-levels" className="rounded-full px-4 py-2 text-terraza-soft hover:bg-terraza-pill">
             levels
           </Link>
-          <Link href="/decks" className="rounded-full px-4 py-2 text-terraza-soft hover:bg-terraza-pill">
-            decks
+          <Link href="/reviews" className="rounded-full px-4 py-2 text-terraza-soft hover:bg-terraza-pill">
+            reviews
           </Link>
           <Link href="/practice" className="rounded-full px-4 py-2 text-terraza-soft hover:bg-terraza-pill">
             practice
