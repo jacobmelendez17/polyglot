@@ -14,7 +14,6 @@ export interface Me {
   name: string;
   role: string;
   capabilities: string[];
-  onboarding_completed?: boolean;
 }
 
 export interface ApiError {

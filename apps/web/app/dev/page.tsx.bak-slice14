@@ -138,16 +138,6 @@ function DevPanel() {
           >
             make all reviews due now
           </button>
-          <button
-            disabled={busy}
-            onClick={() => run("reset progress", async () => {
-              await dev.resetProgress();
-              return "progress reset — sign out and back in to see onboarding";
-            })}
-            className="rounded-full bg-terraza-danger px-5 py-2 text-sm tracking-cozy text-white disabled:opacity-50"
-          >
-            reset my progress
-          </button>
         </div>
         <p className="mt-3 text-sm text-terraza-soft">
           unlock everything, flip on fast time, then start a review — you&apos;ll

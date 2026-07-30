@@ -1,7 +1,6 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { onboarding } from "@/lib/feedback-api";
 import { useState } from "react";
 import { Protected } from "@/components/protected";
 import { Button } from "@/components/ui";
@@ -59,10 +58,8 @@ function Onboarding() {
   const last = i === SLIDES.length - 1;
 
   function finish() {
-    // Remember they've seen it so we don't show it again — server-side is the
-    // source of truth now (slice 14), with localStorage as a harmless fallback.
+    // Remember they've seen it so we don't show it again.
     try { window.localStorage.setItem("polyglot.onboarded", "1"); } catch { /* ignore */ }
-    onboarding.complete().catch(() => { /* best effort — don't block leaving */ });
     router.push("/dashboard");
   }
 

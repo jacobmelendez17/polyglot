@@ -52,12 +52,6 @@ export const dev = {
       { method: "POST" },
     ),
 
-  resetProgress: () =>
-    request<{ ok: boolean; detail: Record<string, unknown> }>(
-      "/api/v1/dev/reset-progress",
-      { method: "POST" },
-    ),
-
   setStage: (itemType: "vocabulary" | "grammar", itemId: string, stage: number) =>
     request<{ ok: boolean; detail: Record<string, unknown> }>(
       "/api/v1/dev/set-stage",

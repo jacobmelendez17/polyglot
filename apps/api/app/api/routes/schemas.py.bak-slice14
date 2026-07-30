@@ -41,8 +41,6 @@ class MeResponse(BaseModel):
     name: str
     role: str
     capabilities: list[str]
-    # Slice 14: lets the app route a signed-in user to onboarding exactly once.
-    onboarding_completed: bool = True
 
 
 # ---- Admin ----

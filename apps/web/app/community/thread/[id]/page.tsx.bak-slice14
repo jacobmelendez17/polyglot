@@ -28,8 +28,8 @@ export default function ThreadPage() {
 
 function ThreadView() {
   const id = String(useParams().id);
-  const { user } = useAuth();
-  const isMod = user?.capabilities?.includes("forum_moderate") ?? false;
+  const { me } = useAuth();
+  const isMod = me?.capabilities?.includes("forum_moderate") ?? false;
 
   const [thread, setThread] = useState<ThreadDetail | null>(null);
   const [postingOpen, setPostingOpen] = useState(false);

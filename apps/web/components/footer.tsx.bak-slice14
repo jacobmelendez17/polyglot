@@ -38,8 +38,8 @@ export function Footer() {
   ];
 
   const resources: FooterLink[] = [
-    { key: "footer.support", href: "/support" },
-    { key: "footer.faq", href: "/faq" },
+    { key: "footer.support", href: null },
+    { key: "footer.faq", href: null },
     { key: "footer.intermissions", href: "/intermissions" },
     { key: "footer.community", href: "/community" },
   ];

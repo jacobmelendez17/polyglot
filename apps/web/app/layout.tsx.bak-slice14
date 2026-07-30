@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Shantell_Sans, Lora } from "next/font/google";
 import { AuthProvider } from "@/lib/auth-context";
-import { FeedbackButton } from "@/components/feedback-button";
 import "./globals.css";
 
 // display: "swap" + explicit fallbacks mean text renders immediately in a
@@ -31,10 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className={`${shantell.variable} ${lora.variable} font-ui`}>
-        <AuthProvider>
-          {children}
-          <FeedbackButton />
-        </AuthProvider>
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );

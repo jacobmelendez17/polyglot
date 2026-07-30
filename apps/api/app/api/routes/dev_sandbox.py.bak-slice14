@@ -89,13 +89,3 @@ def set_stage(
         raise _http(e) from e
     db.commit()
     return DevActionOut(detail=detail)
-
-
-@router.post("/reset-progress", response_model=DevActionOut)
-def reset_progress(
-    db: Session = Depends(get_db), user: User = Depends(get_current_user),
-):
-    from app.services import dev_reset
-    detail = dev_reset.reset_progress(db, user_id=user.id)
-    db.commit()
-    return DevActionOut(detail=detail)

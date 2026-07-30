@@ -45,9 +45,8 @@ export function AuthForm({ mode }: { mode: Mode }) {
         await signup(email, name.trim(), password);
         router.push("/welcome");   // first-time onboarding slides
       } else {
-        const me = await login(email, password);
-        // New/reset accounts see onboarding on sign-in; everyone else goes home.
-        router.push(me && me.onboarding_completed === false ? "/welcome" : "/dashboard");
+        await login(email, password);
+        router.push("/dashboard");
       }
     } catch (err) {
       if (err instanceof ApiClientError) setError(err.message);

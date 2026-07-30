@@ -85,10 +85,6 @@ class FeedbackTicket(Base, TimestampMixin):
     state: Mapped[str] = mapped_column(String(12), default="unanswered")  # unanswered|answered
     pinned: Mapped[bool] = mapped_column(Boolean, default=False)
     email_sent_at: Mapped[datetime | None]
-    # Slice 14: an actual admin reply, so "answered" means there is a response.
-    admin_response: Mapped[str] = mapped_column(Text, default="")
-    responded_at: Mapped[datetime | None]
-    responded_by: Mapped[uuid.UUID | None] = fk("users.id", nullable=True)
 
 
 class Subscription(Base, TimestampMixin):

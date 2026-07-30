@@ -109,9 +109,7 @@ def me(user: User = Depends(get_current_user), db: Session = Depends(get_db)) ->
     caps = sorted(c.value for c in capabilities_for(user.role))
     profile = db.get(Profile, user.id)
     name = profile.display_name if profile else user.email.split("@")[0]
-    onboarding_completed = bool(profile and profile.onboarding_completed_at is not None)
     return MeResponse(
         id=str(user.id), email=user.email, name=name,
         role=user.role.value, capabilities=caps,
-        onboarding_completed=onboarding_completed,
     )
