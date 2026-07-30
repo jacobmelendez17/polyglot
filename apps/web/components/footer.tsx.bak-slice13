@@ -41,7 +41,7 @@ export function Footer() {
     { key: "footer.support", href: null },
     { key: "footer.faq", href: null },
     { key: "footer.intermissions", href: "/intermissions" },
-    { key: "footer.community", href: "/community" },
+    { key: "footer.community", href: null },
   ];
 
   return (

@@ -39,10 +39,6 @@ class Settings(BaseSettings):
     stripe_price_month: str = ""
     stripe_price_year: str = ""
 
-    # Forums (slice 13). Off by default: the forums are browsable before anyone
-    # can post (§18). Flip to true (env FORUMS_POSTING_ENABLED=true) to open them.
-    forums_posting_enabled: bool = False
-
     @property
     def cors_origins(self) -> list[str]:
         return [o.strip() for o in self.api_cors_origins.split(",") if o.strip()]

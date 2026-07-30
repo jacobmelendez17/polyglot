@@ -96,10 +96,6 @@ class Subscription(Base, TimestampMixin):
     stripe_customer_id: Mapped[str | None] = mapped_column(String(80), nullable=True)
     current_period_end: Mapped[datetime | None]
     canceled_at: Mapped[datetime | None]
-    # Slice 12 additions (added to the existing table by migration b7e2f4a91c30).
-    stripe_subscription_id: Mapped[str | None] = mapped_column(String(80), nullable=True)
-    price_interval: Mapped[str | None] = mapped_column(String(10), nullable=True)
-    cancel_at_period_end: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
 
 class AdminAuditLog(Base, TimestampMixin):

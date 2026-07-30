@@ -15,6 +15,3 @@ from app.models import email_tokens as email_tokens  # noqa: F401,E402
 
 # Slice 12: subscriptions. Imported so Base.metadata knows the table.
 from app.models import subscriptions as subscriptions  # noqa: F401,E402
-
-# Slice 13: forums. Imported so Base.metadata knows the tables.
-from app.models import forum as forum  # noqa: F401,E402

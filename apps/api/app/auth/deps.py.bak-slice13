@@ -59,22 +59,6 @@ def get_current_user(
     return user
 
 
-def get_optional_user(
-    request: Request,
-    db: Session = Depends(get_db),
-    settings: Settings = Depends(get_settings),
-) -> User | None:
-    """Like get_current_user, but returns None instead of 401 when there is no
-    valid token. For routes that are public but behave differently when signed
-    in — e.g. a moderator sees hidden forum posts, everyone else does not."""
-    if not request.headers.get("Authorization"):
-        return None
-    try:
-        return get_current_user(request, db, settings)
-    except HTTPException:
-        return None
-
-
 def require(capability: Capability) -> Callable[..., User]:
     """Dependency factory enforcing a capability (PLANNING §4)."""
 

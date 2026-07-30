@@ -52,7 +52,6 @@ def seed(db: Session) -> None:
     _seed_widgets(db)
     _seed_owner(db)
     _seed_intermissions(db)
-    _seed_forums(db)
     db.commit()
 
 
@@ -135,13 +134,3 @@ if __name__ == "__main__":  # pragma: no cover
     with SessionLocal() as session:
         seed(session)
         print("Seed complete.")
-
-
-def _seed_forums(db: Session) -> None:
-    """Seed the forum categories with the rest of the seed (§18)."""
-    try:
-        from app.db.seed_forums import seed_forums
-        seed_forums(db)
-    except Exception:  # pragma: no cover - defensive
-        import logging
-        logging.getLogger(__name__).warning("forum seed skipped", exc_info=True)

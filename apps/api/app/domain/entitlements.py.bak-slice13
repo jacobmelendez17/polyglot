@@ -86,12 +86,7 @@ def resolve_entitlement(
     lapsed cancel doesn't depend on a cron job to downgrade it — the entitlement
     is recomputed from the clock every request.
     """
-    try:
-        status = SubStatus(status)
-    except ValueError:
-        # Legacy/unknown status (e.g. the old table's "active" default) → free.
-        # During beta everything is free anyway; this just avoids a hard crash.
-        status = SubStatus.free
+    status = SubStatus(status)
     now = _aware(now)
     period_end = _aware(current_period_end)
 

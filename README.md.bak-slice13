@@ -43,6 +43,6 @@ docs/           PLANNING.md — architecture, schema, SRS spec, phases
 
 ## Status
 
-Phase 5 in progress — subscriptions and paywall, an admin dev sandbox, and
-community forums (browsable now, posting behind a switch).
+Phase 5 in progress — Stripe subscriptions and the paywall (level 1 free),
+plus an admin dev sandbox for troubleshooting SRS at speed.
 phased roadmap, definition of done, and open decisions.
