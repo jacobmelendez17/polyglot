@@ -40,7 +40,6 @@ export interface Stats {
   stage_counts: { stage: number; name: string; count: number }[];
   forecast: { label: string; count: number }[];
   next_review_at: string | null;
-  vacation?: { paused: boolean; since: string | null; days: number } | null;
 }
 
 async function req<T>(path: string, init: RequestInit = {}): Promise<T> {

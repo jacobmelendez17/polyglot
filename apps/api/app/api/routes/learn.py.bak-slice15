@@ -45,7 +45,6 @@ from app.models.enums import LeechState
 from app.models.identity import User
 from app.models.progress import UserItemProgress, XpEvent
 from app.services import items as items_svc
-from app.services import vacation as vacation_svc
 from app.services import lessons as lesson_svc
 from app.services import levels as _levels_service
 from app.services import reviews as review_svc
@@ -252,9 +251,6 @@ def stats(db: Session = Depends(get_db), user: User = Depends(get_current_user))
     ).scalars().all()
     due = sum(1 for p in rows if p.next_review_at and p.next_review_at <= now
               and p.srs_stage < int(srs.Stage.fluent))
-    vacation_state = vacation_svc.get_state(db, user_id=user.id, now=now)
-    if vacation_state["paused"]:
-        due = 0  # frozen: nothing comes due during a break
     fluent = sum(1 for p in rows if p.srs_stage >= int(srs.Stage.fluent))
     leeches = sum(1 for p in rows if p.leech_state in (LeechState.leech, LeechState.critical))
 
@@ -316,7 +312,6 @@ def stats(db: Session = Depends(get_db), user: User = Depends(get_current_user))
         items_learned=len(rows), items_fluent=fluent, leeches=leeches,
         stage_group_counts=stage_group_counts, stage_counts=stage_counts,
         forecast=buckets, next_review_at=next_review,
-        vacation=vacation_state,
     )
 
 

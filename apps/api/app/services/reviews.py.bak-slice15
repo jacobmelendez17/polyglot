@@ -78,11 +78,6 @@ class GradeResult:
 def due_items(db: Session, user_id: uuid.UUID, *, now: dt.datetime | None = None,
               limit: int = 100) -> list[UserItemProgress]:
     now = now or _now()
-    # Vacation mode (R-25): while paused, nothing is due — the schedule is frozen
-    # and will be shifted forward on resume so nothing piles up.
-    from app.services.vacation import is_paused
-    if is_paused(db, user_id):
-        return []
     return list(db.execute(
         select(UserItemProgress).where(
             UserItemProgress.user_id == user_id,

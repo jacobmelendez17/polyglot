@@ -200,8 +200,6 @@ class StatsOut(BaseModel):
     stage_counts: list[SrsStageCount]
     forecast: list[ForecastBucket]
     next_review_at: str | None = None
-    # Vacation mode (R-25): present so the UI can show a paused state.
-    vacation: dict | None = None
 
 
 # ---- Practice ----

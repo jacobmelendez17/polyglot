@@ -261,10 +261,8 @@ export function WelcomeWidget() {
   const due = stats?.reviews_due ?? 0;
   const lessons = stats?.lessons_available ?? 0;
 
-  const paused = stats?.vacation?.paused ?? false;
   const line =
-    paused ? `reviews are paused — enjoy your break.`
-    : due > 0 ? `you have ${due} ${due === 1 ? "review" : "reviews"} waiting.`
+    due > 0 ? `you have ${due} ${due === 1 ? "review" : "reviews"} waiting.`
     : lessons > 0 ? `ready to learn something new?`
     : `all caught up — nicely done.`;
 

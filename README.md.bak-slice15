@@ -44,6 +44,5 @@ docs/           PLANNING.md — architecture, schema, SRS spec, phases
 ## Status
 
 Phase 5 COMPLETE — subscriptions and paywall, an admin dev sandbox, community
-forums, and a support/feedback inbox with email routing to the owner. Vacation mode freezes and
-restores the review schedule for breaks.
+forums, and a support/feedback inbox with email routing to the owner.
 phased roadmap, definition of done, and open decisions.
