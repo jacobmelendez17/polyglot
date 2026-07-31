@@ -45,5 +45,5 @@ docs/           PLANNING.md — architecture, schema, SRS spec, phases
 
 Phase 5 COMPLETE — subscriptions and paywall, an admin dev sandbox, community
 forums, and a support/feedback inbox with email routing to the owner. Vacation mode freezes and
-restores the review schedule for breaks. Speaking practice scores spoken answers on-device (no audio leaves the browser). Community journals let learners share entries for feedback (private by default).
+restores the review schedule for breaks. Speaking practice scores spoken answers on-device (no audio leaves the browser).
 phased roadmap, definition of done, and open decisions.

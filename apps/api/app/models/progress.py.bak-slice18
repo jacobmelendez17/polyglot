@@ -177,11 +177,6 @@ class JournalEntry(Base, TimestampMixin):
     body_draft: Mapped[str] = mapped_column(Text, default="")   # autosave, never lost
     archived_at: Mapped[datetime | None]
     visibility: Mapped[str] = mapped_column(String(12), default="private")
-    # Community sharing (§7): shared_at orders the feed; share_hidden lets a
-    # moderator pull a shared entry from the feed without touching the owner's copy.
-    shared_at: Mapped[datetime | None]
-    share_hidden: Mapped[bool] = mapped_column(Boolean, default=False)
-    share_hidden_reason: Mapped[str | None]
 
 
 class XpEvent(Base, TimestampMixin):
