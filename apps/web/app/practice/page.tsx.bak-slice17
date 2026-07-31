@@ -27,14 +27,6 @@ export default function PracticeHub() {
               </Card>
             </Link>
           ))}
-          <Link href="/practice/speaking">
-            <Card className="transition-transform hover:-translate-y-1">
-              <div className="text-3xl text-terraza-accent">🎙</div>
-              <p className="mt-3 text-lg lowercase tracking-cozy">speaking</p>
-              <p className="mt-1 text-sm text-terraza-soft">say phrases out loud — your device transcribes and scores them</p>
-              <p className="mt-4 text-xs tracking-label text-terraza-accent">START →</p>
-            </Card>
-          </Link>
         </div>
       </main>
     </Protected>
