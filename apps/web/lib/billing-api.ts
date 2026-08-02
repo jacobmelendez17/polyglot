@@ -1,66 +1,35 @@
-// Subscriptions, billing, and the dev sandbox.
+// Billing / subscription client.
 import { request } from "./http";
 
-export interface Entitlement {
+export interface Entitlements {
+  tier: string;
   status: string;
-  full_access: boolean;
-  max_free_level: number;
-  access_until: string | null;
-  cancel_at_period_end: boolean;
-  price_interval: string | null;
-  prices: Record<string, string>;
+  entitled: boolean;
+  free_max_level: number;
+  current_period_end: string | null;
+  canceled_at: string | null;
 }
 
-export interface DevState {
-  dev_mode: boolean;
-  srs_scale: number;
-  srs_scale_description: string;
-  presets: Record<string, number>;
+export interface Plan {
+  plan: string;
+  label: string;
+  amount: number;
+  currency: string;
+  interval: string;
 }
 
-export const subscription = {
-  get: () => request<Entitlement>("/api/v1/me/subscription"),
-
-  checkout: (interval: "month" | "year") =>
-    request<{ url: string }>("/api/v1/me/subscription/checkout", {
-      method: "POST",
-      body: JSON.stringify({ interval }),
-    }),
-
-  portal: () =>
-    request<{ url: string }>("/api/v1/me/subscription/portal", { method: "POST" }),
+export const billing = {
+  entitlements: () => request<Entitlements>("/api/v1/me/entitlements"),
+  plans: () => request<Plan[]>("/api/v1/billing/plans"),
+  checkout: (plan: string, success_url = "/dashboard", cancel_url = "/pricing") =>
+    request<{ url: string }>("/api/v1/billing/checkout",
+      { method: "POST", body: JSON.stringify({ plan, success_url, cancel_url }) }),
+  portal: (return_url = "/settings") =>
+    request<{ url: string }>("/api/v1/billing/portal",
+      { method: "POST", body: JSON.stringify({ return_url }) }),
 };
 
-export const dev = {
-  state: () => request<DevState>("/api/v1/dev/state"),
-
-  setMode: (enabled: boolean, scale?: string) =>
-    request<DevState>("/api/v1/dev/mode", {
-      method: "PUT",
-      body: JSON.stringify({ enabled, scale }),
-    }),
-
-  unlockAll: (upToLevel?: number) =>
-    request<{ ok: boolean; detail: { unlocked: number } }>(
-      "/api/v1/dev/unlock-all",
-      { method: "POST", body: JSON.stringify({ up_to_level: upToLevel ?? null }) },
-    ),
-
-  makeReviewsDue: () =>
-    request<{ ok: boolean; detail: { made_due: number } }>(
-      "/api/v1/dev/make-reviews-due",
-      { method: "POST" },
-    ),
-
-  resetProgress: () =>
-    request<{ ok: boolean; detail: Record<string, unknown> }>(
-      "/api/v1/dev/reset-progress",
-      { method: "POST" },
-    ),
-
-  setStage: (itemType: "vocabulary" | "grammar", itemId: string, stage: number) =>
-    request<{ ok: boolean; detail: Record<string, unknown> }>(
-      "/api/v1/dev/set-stage",
-      { method: "POST", body: JSON.stringify({ item_type: itemType, item_id: itemId, stage }) },
-    ),
-};
+export function priceText(amount: number, currency: string): string {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: currency.toUpperCase() })
+    .format(amount / 100);
+}

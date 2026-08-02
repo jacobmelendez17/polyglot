@@ -79,9 +79,6 @@ def _module_or_404(db: Session, position: int) -> Module:
 
 
 def _require_unlocked(db: Session, user_id: uuid.UUID, module: Module) -> None:
-    # Paywall (§19): level 1 is free; beyond needs an entitlement.
-    from app.services.billing import require_entitlement_for_level
-    require_entitlement_for_level(db, user_id=user_id, level=module.position)
     """Locked levels aren't reachable by URL either — the gate is server-side."""
     lang_id = module.language_id
     for st in _all_level_states(db, user_id, lang_id):
