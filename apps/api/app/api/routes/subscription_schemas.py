@@ -1,38 +1,8 @@
-"""Schemas for subscriptions, billing, and the dev sandbox."""
+"""Schemas for the dev sandbox."""
 from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-
-class EntitlementOut(BaseModel):
-    status: str
-    full_access: bool
-    max_free_level: int
-    access_until: str | None = None
-    cancel_at_period_end: bool = False
-    price_interval: str | None = None
-    prices: dict[str, str] = Field(default_factory=dict)
-
-
-class CheckoutRequest(BaseModel):
-    interval: str = Field(pattern="^(month|year)$")
-
-
-class CheckoutOut(BaseModel):
-    url: str
-
-
-class PortalOut(BaseModel):
-    url: str
-
-
-class AdminSetStatusRequest(BaseModel):
-    status: str = Field(
-        pattern="^(free|beta|lifetime|paid_active|paid_past_due|paid_canceled)$"
-    )
-
-
-# --- dev sandbox ---------------------------------------------------------
 
 class DevStateOut(BaseModel):
     dev_mode: bool

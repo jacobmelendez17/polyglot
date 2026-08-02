@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import account, admin, admin_content, auth, billing, community_journal, content, dashboard, decks, dev_sandbox, feedback, forums, health, items, languages, learn, onboarding, practice, reading, speech, subscriptions, vacation
+from app.api.routes import account, admin, admin_content, auth, billing, community_journal, content, dashboard, decks, dev_sandbox, feedback, forums, health, items, languages, learn, onboarding, practice, reading, speech, vacation
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 
@@ -43,7 +43,6 @@ def create_app() -> FastAPI:
     app.include_router(speech.router)
     app.include_router(vacation.router)
     app.include_router(forums.router)
-    app.include_router(subscriptions.router)
     app.include_router(dev_sandbox.router)
     app.include_router(practice.router)
     app.include_router(dashboard.router)
