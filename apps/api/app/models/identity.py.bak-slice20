@@ -58,8 +58,6 @@ class Profile(Base, TimestampMixin):
     timezone: Mapped[str] = mapped_column(String(64), default="America/Mexico_City")
     onboarding_completed_at: Mapped[datetime | None]
     immersion_unlocked_at: Mapped[datetime | None]
-    # Active language the learner is studying (§1, §32).
-    active_language_code: Mapped[str] = mapped_column(String(10), default="es-MX")
 
 
 class UserSettings(Base, TimestampMixin):

@@ -27,8 +27,6 @@ class Language(Base, TimestampMixin):
     native_name: Mapped[str] = mapped_column(String(60), default="")
     # practice-stage names per language, e.g. ["Uno","Dos","Tres","Cuatro","Cinco"]
     stage_names: Mapped[list] = mapped_column(JSON, default=list)
-    # Whether learners may choose this language (§1).
-    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
 class Module(Base, ContentMixin):
