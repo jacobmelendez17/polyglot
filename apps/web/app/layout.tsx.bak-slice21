@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { PlausibleScript } from "@/components/plausible";
 import { Shantell_Sans, Lora } from "next/font/google";
 import { AuthProvider } from "@/lib/auth-context";
 import { FeedbackButton } from "@/components/feedback-button";
@@ -36,7 +35,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {children}
           <FeedbackButton />
         </AuthProvider>
-              <PlausibleScript />
       </body>
     </html>
   );
