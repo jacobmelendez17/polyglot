@@ -7,7 +7,6 @@ from app.models.progress import *  # noqa: F401,F403
 from app.models.vacation import *  # noqa: F401,F403
 from app.models.community_journal import *  # noqa: F401,F403
 from app.models.reading import *  # noqa: F401,F403
-from app.models.testing import *  # noqa: F401,F403
 
 # Slice 9: guided-tour state. Imported so Base.metadata knows the table
 # (Alembic autogenerate and the test schema both read from metadata).
