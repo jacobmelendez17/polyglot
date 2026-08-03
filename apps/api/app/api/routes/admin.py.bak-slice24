@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -44,19 +44,14 @@ def _audit(db: Session, actor: User, action: str, table: str,
     ))
 
 
-def _language(db: Session, code: str) -> Language:
-    lang = db.execute(select(Language).where(Language.code == code)).scalar_one_or_none()
+def _spanish(db: Session) -> Language:
+    lang = db.execute(select(Language).where(Language.code == "es-MX")).scalar_one_or_none()
     if lang is None:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail={"error": {"code": "unknown_language",
-                              "message": f"Language '{code}' is not set up. Add it first."}},
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"error": {"code": "no_language", "message": "Spanish language not seeded."}},
         )
     return lang
-
-
-def _spanish(db: Session) -> Language:
-    return _language(db, "es-MX")
 
 
 async def _read_csv(file: UploadFile) -> str:
@@ -78,13 +73,12 @@ async def _read_csv(file: UploadFile) -> str:
 @router.post("/imports/vocabulary", response_model=ImportResult)
 async def import_vocab(
     file: UploadFile,
-    language: str = Query(default="es-MX", max_length=10),
     db: Session = Depends(get_db),
     actor: User = Depends(require(Capability.content_import)),
 ) -> ImportResult:
     text = await _read_csv(file)
     import_id = uuid.uuid4()
-    lang = _language(db, language)
+    lang = _spanish(db)
     created, updated, report = import_vocabulary(
         db, language_id=lang.id, csv_text=text, import_id=import_id,
     )
@@ -102,13 +96,12 @@ async def import_vocab(
 @router.post("/imports/grammar", response_model=ImportResult)
 async def import_gram(
     file: UploadFile,
-    language: str = Query(default="es-MX", max_length=10),
     db: Session = Depends(get_db),
     actor: User = Depends(require(Capability.content_import)),
 ) -> ImportResult:
     text = await _read_csv(file)
     import_id = uuid.uuid4()
-    lang = _language(db, language)
+    lang = _spanish(db)
     created, updated, report = import_grammar(
         db, language_id=lang.id, csv_text=text, import_id=import_id,
     )
