@@ -1,140 +1,361 @@
 "use client";
 
+// Landing page (spec §20) — polyglot-slice29-landing
+//
+// A scrollable, animated front door: a hero with a rotating multilingual greeting +
+// sign-up/log-in, then SRS, practice, and testimonials sections that reveal as you
+// scroll. All motion is CSS (keyframes in globals.css) or the IntersectionObserver
+// reveal below, and everything degrades under prefers-reduced-motion (globals.css
+// disables animation/transition there, and Reveal shows immediately). Signed-in
+// visitors are sent to their dashboard.
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
+import {
+  GREETINGS,
+  PRACTICE_FEATURES,
+  SRS_STAGES,
+  TESTIMONIALS,
+} from "@/lib/landing-content";
 
-export default function Landing() {
-  const { user, loading } = useAuth();
+const PRIMARY =
+  "rounded-full bg-terraza-accent px-6 py-3 tracking-cozy text-terraza-accentInk transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-terraza-ink";
+const GHOST =
+  "rounded-full bg-terraza-pill px-6 py-3 tracking-cozy text-terraza-ink transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-terraza-ink";
+
+export default function LandingPage() {
+  const { user } = useAuth();
   const router = useRouter();
-
-  // Signed-in visitors go straight to their dashboard.
   useEffect(() => {
-    if (!loading && user) router.replace("/dashboard");
-  }, [user, loading, router]);
+    if (user) router.replace("/dashboard");
+  }, [user, router]);
 
   return (
-    <div className="min-h-screen">
-      {/* Nav */}
-      <header className="mx-auto flex max-w-5xl items-center px-6 py-5">
-        <span className="mr-auto text-lg lowercase tracking-cozy">
+    <div className="overflow-x-hidden">
+      <Nav />
+      <Hero />
+      <SrsSection />
+      <PracticeSection />
+      <TestimonialsSection />
+      <ClosingCta />
+      <Footer />
+    </div>
+  );
+}
+
+/* ---- scroll reveal ------------------------------------------------------- */
+
+function Reveal({ children, delay = 0, className = "" }: {
+  children: React.ReactNode; delay?: number; className?: string;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (reduce || !("IntersectionObserver" in window)) { setShown(true); return; }
+    const io = new IntersectionObserver(
+      (entries) => entries.forEach((e) => {
+        if (e.isIntersecting) { setShown(true); io.disconnect(); }
+      }),
+      { threshold: 0.15, rootMargin: "0px 0px -8% 0px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  return (
+    <div
+      ref={ref}
+      style={{ transitionDelay: `${delay}ms` }}
+      className={`transition-all duration-700 ease-out ${shown ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"} ${className}`}
+    >
+      {children}
+    </div>
+  );
+}
+
+/* ---- nav ----------------------------------------------------------------- */
+
+function Nav() {
+  return (
+    <header className="sticky top-0 z-20 border-b border-terraza-dash/60 bg-terraza-bg/80 backdrop-blur">
+      <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3">
+        <Link href="/" className="mr-auto text-lg lowercase tracking-cozy">
           polyglot <span className="text-terraza-accent">✦</span>
+        </Link>
+        <Link href="/login" className="px-4 py-2 text-terraza-soft hover:text-terraza-ink">log in</Link>
+        <Link href="/signup" className={PRIMARY}>sign up</Link>
+      </div>
+    </header>
+  );
+}
+
+/* ---- hero ---------------------------------------------------------------- */
+
+function Hero() {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) return;
+    const t = setInterval(() => setI((n) => (n + 1) % GREETINGS.length), 2200);
+    return () => clearInterval(t);
+  }, []);
+  const g = GREETINGS[i];
+
+  return (
+    <section className="relative mx-auto max-w-6xl px-4 pb-8 pt-16 text-center sm:pt-24">
+      {/* drifting greeting words in the background */}
+      <FloatingGreetings />
+
+      <p className="relative text-xs tracking-label text-terraza-soft">
+        ✦ YOUR COZY PATH TO FLUENCY
+      </p>
+      <h1 className="relative mx-auto mt-4 max-w-3xl text-4xl leading-tight tracking-cozy sm:text-6xl">
+        say{" "}
+        <span
+          key={i}
+          lang={g.lang}
+          className="inline-block text-terraza-accent"
+          style={{ animation: "lp-pop 500ms ease-out" }}
+        >
+          {g.text}
+        </span>{" "}
+        to fluency
+      </h1>
+      <p className="relative mx-auto mt-5 max-w-xl text-lg text-terraza-soft">
+        learn to read, write, listen, and speak — one cozy step at a time. a spaced-repetition
+        journey through vocabulary and grammar, in the language you&apos;ve been meaning to learn.
+      </p>
+      <div className="relative mt-8 flex flex-wrap items-center justify-center gap-3">
+        <Link href="/signup" className={`${PRIMARY} text-base`}>sign up — first level free</Link>
+        <Link href="/login" className={`${GHOST} text-base`}>log in</Link>
+      </div>
+
+      <GreetingMarquee />
+    </section>
+  );
+}
+
+function FloatingGreetings() {
+  // A few big, faint greetings drifting behind the hero. Decorative, aria-hidden.
+  const picks = [GREETINGS[2], GREETINGS[7], GREETINGS[10], GREETINGS[3], GREETINGS[9]];
+  const spots = [
+    { top: "8%", left: "6%", dur: "7s" },
+    { top: "18%", left: "82%", dur: "9s" },
+    { top: "62%", left: "4%", dur: "8s" },
+    { top: "70%", left: "86%", dur: "10s" },
+    { top: "40%", left: "90%", dur: "6.5s" },
+  ];
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-0 select-none">
+      {picks.map((g, idx) => (
+        <span
+          key={idx}
+          className="absolute text-3xl text-terraza-pink/40 sm:text-5xl"
+          style={{ top: spots[idx].top, left: spots[idx].left, animation: `lp-float ${spots[idx].dur} ease-in-out infinite` }}
+        >
+          {g.text}
         </span>
-        <nav className="flex items-center gap-2">
-          <Link href="/login" className="rounded-full px-4 py-2 text-terraza-soft hover:bg-terraza-pill">
-            sign in
-          </Link>
-          <Link
-            href="/signup"
-            className="rounded-full bg-terraza-accent px-5 py-2 text-terraza-accentInk"
-          >
-            get started
-          </Link>
-        </nav>
-      </header>
+      ))}
+    </div>
+  );
+}
 
-      {/* Hero */}
-      <section className="mx-auto max-w-3xl px-6 pt-16 pb-10 text-center">
-        <span className="inline-block rounded-full bg-terraza-pill px-4 py-1.5 text-xs tracking-label text-terraza-soft">
-          ✦ SPANISH · LATIN AMERICAN · COZY
-        </span>
-        <h1 className="mt-6 text-4xl leading-tight lowercase tracking-cozy sm:text-5xl">
-          learn spanish,<br />
-          <span className="text-terraza-accent">one cozy review at a time</span>
-        </h1>
-        <p className="mx-auto mt-5 max-w-xl text-terraza-soft">
-          a spaced-repetition journey from your first "hola" to real conversations —
-          vocabulary, grammar, listening, writing, and speaking, all in one warm place.
-        </p>
-        <div className="mt-8 flex items-center justify-center gap-3">
-          <Link
-            href="/signup"
-            className="rounded-full bg-terraza-accent px-7 py-3 tracking-cozy text-terraza-accentInk transition-transform hover:-translate-y-0.5"
-          >
-            start free →
-          </Link>
-          <Link
-            href="/login"
-            className="rounded-full bg-terraza-pill px-7 py-3 tracking-cozy text-terraza-ink"
-          >
-            i have an account
-          </Link>
-        </div>
-      </section>
+function GreetingMarquee() {
+  const doubled = [...GREETINGS, ...GREETINGS];
+  return (
+    <div className="relative mt-16 overflow-hidden [mask-image:linear-gradient(90deg,transparent,black_12%,black_88%,transparent)]">
+      <div className="flex w-max gap-8" style={{ animation: "lp-marquee 40s linear infinite" }}>
+        {doubled.map((g, idx) => (
+          <span key={idx} className="flex shrink-0 items-baseline gap-2 text-terraza-ink">
+            <span className="text-xl tracking-cozy">{g.text}</span>
+            <span className="text-xs tracking-label text-terraza-soft">{g.lang}</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
 
-      {/* Feature cards */}
-      <section className="mx-auto max-w-4xl px-6 py-10">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          {[
-            {
-              t: "remember it for good",
-              d: "a proven spaced-repetition system schedules each word right before you'd forget it — nine stages from beginner to fluent.",
-            },
-            {
-              t: "more than flashcards",
-              d: "grammar, listening, writing, speaking, and journaling — the four skills you actually need, woven into one journey.",
-            },
-            {
-              t: "built for latin america",
-              d: "mexican-first vocabulary and dialect, with regional notes so what you learn is what people actually say.",
-            },
-          ].map((f) => (
-            <div
-              key={f.t}
-              className="rounded-card border border-terraza-dash bg-terraza-card p-6"
-              style={{ boxShadow: "0 2px 0 var(--lg-dash)" }}
-            >
-              <div className="mb-3 h-2 w-8 rounded-full bg-terraza-accent" />
-              <h3 className="lowercase tracking-cozy">{f.t}</h3>
-              <p className="mt-2 text-sm text-terraza-soft">{f.d}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+/* ---- SRS ----------------------------------------------------------------- */
 
-      {/* How it works */}
-      <section className="mx-auto max-w-3xl px-6 py-10">
-        <h2 className="text-center text-2xl lowercase tracking-cozy">how it works</h2>
-        <ol className="mt-6 flex flex-col gap-4">
-          {[
-            ["learn a batch", "pick up 12 words or a set of grammar points in a themed lesson."],
-            ["review on schedule", "each item comes back right when you need it — spanish→english and back."],
-            ["grow every skill", "unlock listening, writing, and speaking practice as you level up."],
-          ].map(([t, d], i) => (
-            <li
-              key={t}
-              className="flex items-start gap-4 rounded-card border border-terraza-dash bg-terraza-card p-5"
-            >
-              <span className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-terraza-pill text-sm">
-                {i + 1}
-              </span>
-              <div>
-                <p className="lowercase tracking-cozy">{t}</p>
-                <p className="mt-1 text-sm text-terraza-soft">{d}</p>
-              </div>
+function SrsSection() {
+  return (
+    <section className="border-t border-terraza-dash/50 bg-terraza-card/40 py-20">
+      <div className="mx-auto max-w-5xl px-4">
+        <Reveal>
+          <p className="text-center text-xs tracking-label text-terraza-soft">HOW IT STICKS</p>
+          <h2 className="mx-auto mt-3 max-w-2xl text-center text-3xl tracking-cozy sm:text-4xl">
+            a memory system that meets you right before you forget
+          </h2>
+          <p className="mx-auto mt-4 max-w-xl text-center text-terraza-soft">
+            every word and grammar point climbs a ladder of stages. remember it and the next
+            review moves further out; slip and it eases back so you see it more. the schedule does
+            the remembering for you.
+          </p>
+        </Reveal>
+
+        <ol className="mt-14 flex flex-col gap-4 sm:flex-row sm:items-stretch sm:gap-3">
+          {SRS_STAGES.map((s, idx) => (
+            <li key={s.name} className="flex-1">
+              <Reveal delay={idx * 120} className="h-full">
+                <div className="flex h-full flex-col rounded-card border border-terraza-dash bg-terraza-card p-5">
+                  <div className="flex items-center gap-2">
+                    <span
+                      aria-hidden
+                      className="flex h-7 w-7 items-center justify-center rounded-full bg-terraza-green text-sm text-terraza-accentInk"
+                      style={{ animation: `lp-bob ${3 + idx * 0.3}s ease-in-out infinite` }}
+                    >
+                      {idx + 1}
+                    </span>
+                    <span className="lowercase tracking-cozy">{s.name}</span>
+                  </div>
+                  <p className="mt-3 text-sm text-terraza-soft">{s.blurb}</p>
+                </div>
+              </Reveal>
             </li>
           ))}
         </ol>
-      </section>
+      </div>
+    </section>
+  );
+}
 
-      {/* Closing CTA */}
-      <section className="mx-auto max-w-3xl px-6 py-16 text-center">
-        <h2 className="text-2xl lowercase tracking-cozy">the first level is on us</h2>
-        <p className="mx-auto mt-3 max-w-md text-terraza-soft">
-          start learning today — no card, no catch. begin your journey through spanish.
-        </p>
-        <Link
-          href="/signup"
-          className="mt-6 inline-block rounded-full bg-terraza-accent px-7 py-3 tracking-cozy text-terraza-accentInk transition-transform hover:-translate-y-0.5"
-        >
-          create your account →
-        </Link>
-      </section>
+/* ---- practice ------------------------------------------------------------ */
 
-      <footer className="mx-auto max-w-5xl border-t border-terraza-dash px-6 py-8 text-center text-sm text-terraza-soft">
-        polyglot ✦ &nbsp;·&nbsp; a cozy way to learn spanish
-      </footer>
-    </div>
+function PracticeSection() {
+  return (
+    <section className="py-20">
+      <div className="mx-auto max-w-5xl px-4">
+        <Reveal>
+          <p className="text-center text-xs tracking-label text-terraza-soft">EVERY WAY YOU&apos;LL USE IT</p>
+          <h2 className="mx-auto mt-3 max-w-2xl text-center text-3xl tracking-cozy sm:text-4xl">
+            practice the whole language, not just flashcards
+          </h2>
+        </Reveal>
+
+        <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {PRACTICE_FEATURES.map((f, idx) => (
+            <Reveal key={f.title} delay={(idx % 4) * 100}>
+              <div className="group h-full rounded-card border border-terraza-dash bg-terraza-card p-5">
+                <span
+                  aria-hidden
+                  className="inline-block text-3xl"
+                  style={{ animation: `lp-bob ${3 + (idx % 4) * 0.4}s ease-in-out infinite` }}
+                >
+                  {f.icon}
+                </span>
+                <h3 className="mt-3 lowercase tracking-cozy">{f.title}</h3>
+                <p className="mt-1 text-sm text-terraza-soft">{f.blurb}</p>
+              </div>
+            </Reveal>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ---- testimonials -------------------------------------------------------- */
+
+function TestimonialsSection() {
+  return (
+    <section className="border-t border-terraza-dash/50 bg-terraza-card/40 py-20">
+      <div className="mx-auto max-w-5xl px-4">
+        <Reveal>
+          <p className="text-center text-xs tracking-label text-terraza-soft">LEARNERS ON THE JOURNEY</p>
+          <h2 className="mx-auto mt-3 max-w-2xl text-center text-3xl tracking-cozy sm:text-4xl">
+            people are sticking with it
+          </h2>
+        </Reveal>
+
+        <div className="mt-12 grid grid-cols-1 gap-4 md:grid-cols-3">
+          {TESTIMONIALS.map((t, idx) => (
+            <Reveal key={t.name} delay={idx * 120}>
+              <figure className="flex h-full flex-col rounded-card border border-terraza-dash bg-terraza-card p-6">
+                <blockquote className="flex-1 text-terraza-ink">&ldquo;{t.quote}&rdquo;</blockquote>
+                <figcaption className="mt-4 flex items-center gap-3">
+                  <span
+                    aria-hidden
+                    className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-terraza-green bg-terraza-pink text-terraza-accentInk"
+                  >
+                    {t.name[0]}
+                  </span>
+                  <span className="text-sm">
+                    <span className="tracking-cozy">{t.name}</span>
+                    <span className="block text-xs text-terraza-soft">{t.role}</span>
+                  </span>
+                </figcaption>
+              </figure>
+            </Reveal>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ---- closing CTA + footer ----------------------------------------------- */
+
+function ClosingCta() {
+  return (
+    <section className="py-24 text-center">
+      <Reveal>
+        <div className="mx-auto max-w-2xl px-4">
+          <span aria-hidden className="text-4xl text-terraza-gold" style={{ animation: "lp-sparkle 3s ease-in-out infinite" }}>✦</span>
+          <h2 className="mt-4 text-3xl tracking-cozy sm:text-4xl">ready when you are</h2>
+          <p className="mx-auto mt-3 max-w-md text-terraza-soft">
+            your first level is free — no card, no pressure. start today and see how far a cozy
+            habit takes you.
+          </p>
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <Link href="/signup" className={`${PRIMARY} text-base`}>sign up</Link>
+            <Link href="/login" className={`${GHOST} text-base`}>log in</Link>
+          </div>
+        </div>
+      </Reveal>
+    </section>
+  );
+}
+
+function Footer() {
+  const cols: { title: string; links: { label: string; href: string }[] }[] = [
+    { title: "product", links: [
+      { label: "features", href: "/#practice" },
+      { label: "how it works", href: "/#srs" },
+      { label: "pricing", href: "/pricing" },
+      { label: "changelog", href: "/changelog" },
+    ] },
+    { title: "resources", links: [
+      { label: "support", href: "/support" },
+      { label: "faq", href: "/faq" },
+    ] },
+  ];
+  return (
+    <footer className="border-t border-terraza-dash/60 py-12">
+      <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 sm:flex-row sm:justify-between">
+        <div className="text-lg lowercase tracking-cozy">
+          polyglot <span className="text-terraza-accent">✦</span>
+          <p className="mt-1 max-w-xs text-sm text-terraza-soft">a cozy, spaced-repetition path to fluency.</p>
+        </div>
+        <div className="flex gap-12">
+          {cols.map((c) => (
+            <nav key={c.title} aria-label={c.title}>
+              <p className="text-xs tracking-label text-terraza-soft">{c.title.toUpperCase()}</p>
+              <ul className="mt-3 flex flex-col gap-2 text-sm">
+                {c.links.map((l) => (
+                  <li key={l.label}>
+                    <Link href={l.href} className="text-terraza-ink hover:text-terraza-accent">{l.label}</Link>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          ))}
+        </div>
+      </div>
+    </footer>
   );
 }

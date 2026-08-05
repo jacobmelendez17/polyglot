@@ -132,7 +132,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
           </p>
         )}
         <p>
-          <TextLink href="/">← back to home</TextLink>
+          <TextLink href="/">← back to landing page</TextLink>
         </p>
       </div>
     </main>
