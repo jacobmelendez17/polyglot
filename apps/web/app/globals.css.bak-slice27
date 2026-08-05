@@ -8,19 +8,19 @@
    keep this block in sync with that file. */
 :root {
   /* palette */
-  --lg-bg: rgb(var(--terraza-bg));
-  --lg-bg-grid: rgb(var(--terraza-grid));
-  --lg-ink: rgb(var(--terraza-ink));
-  --lg-soft: rgb(var(--terraza-soft));
-  --lg-accent: rgb(var(--terraza-accent));
-  --lg-accent-ink: rgb(var(--terraza-accentInk));
-  --lg-pill: rgb(var(--terraza-pill));
-  --lg-green: rgb(var(--terraza-green));
-  --lg-pink: rgb(var(--terraza-pink));
-  --lg-gold: rgb(var(--terraza-gold));
-  --lg-dash: rgb(var(--terraza-dash));
-  --lg-card: rgb(var(--terraza-card));
-  --lg-danger: rgb(var(--terraza-danger));
+  --lg-bg: #F7EFE7;        /* adobe cream */
+  --lg-bg-grid: #EFE2D4;   /* grid-paper lines */
+  --lg-ink: #3E4440;       /* soft charcoal-green */
+  --lg-soft: #96938A;      /* muted labels */
+  --lg-accent: #7FA69B;    /* dusty teal (primary action) */
+  --lg-accent-ink: #1F2E29;
+  --lg-pill: #E9DCCC;      /* active tab / neutral chip */
+  --lg-green: #BFD8CE;     /* success / SRS chips */
+  --lg-pink: #EBC3B4;      /* adobe blush accents */
+  --lg-gold: #EFCF8E;      /* marigold accents */
+  --lg-dash: #E1D3C2;      /* borders + dashed rules */
+  --lg-card: #FFFFFF;
+  --lg-danger: #C97B6B;    /* errors, keep muted */
 
   /* type */
   --lg-font-ui: "Shantell Sans", cursive;

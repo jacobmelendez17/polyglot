@@ -1,214 +1,111 @@
-"""Password reset and email verification flows.
+"""Account service (spec §16, §20): user settings + profile.
 
-The overriding rule in this file is **no account enumeration**. Requesting a
-reset for an address that has no account returns exactly the same response as
-one that does. Neither the status code, the body, nor the timing distinguishes
-them — otherwise the endpoint becomes a way to check which emails are
-registered.
-
-Redemption is server-authoritative and single-use: the token is looked up by
-hash, checked for expiry and prior use, and consumed in the same transaction
-that changes the password. A successful password reset also revokes every
-existing session, because a reset is exactly what you do when you fear the
-account is compromised.
+Settings and profile both get-or-create their row, validate input server-side, and
+never let a client write server-controlled fields (xp, points, rank). Settings
+validation (including the immersion gate) lives in the pure `domain.settings`.
 """
 from __future__ import annotations
 
-import datetime as dt
-import logging
 import uuid
 
-from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
-from app.auth.passwords import hash_password
-from app.domain import email_tokens as token_rules
-from app.email import templates
-from app.email.provider import EmailDeliveryError, EmailProvider
-from app.models.email_tokens import EmailVerificationToken, PasswordResetToken
-from app.models.identity import AuthSession, User
+from app.domain.settings import SettingsError, validate_settings_patch
+from app.models.enums import CurriculumMode
+from app.models.identity import Profile, User, UserSettings
 
-log = logging.getLogger(__name__)
-
-MIN_PASSWORD_LENGTH = 8
-
-
-class AccountError(Exception):
-    def __init__(self, message: str, code: str = "error", status: int = 400) -> None:
-        super().__init__(message)
-        self.message = message
-        self.code = code
-        self.status = status
+# Fields serialized back to the client (everything editable, in a stable shape).
+_SETTINGS_FIELDS = [
+    "theme", "font_size", "color_theme", "lesson_batch_size", "review_order",
+    "curriculum_mode", "back_to_back", "back_to_back_order", "show_srs_indicator",
+    "leech_threshold", "review_batch_enabled", "review_batch_size",
+    "reveal_full_answer", "allow_cheating", "allow_skipping", "undo_enabled",
+    "accept_user_synonyms", "intermissions_enabled", "immersion_mode", "dialect",
+    "audio_autoplay", "audio_voice", "audio_rate",
+]
 
 
-def _now() -> dt.datetime:
-    return dt.datetime.now(tz=dt.timezone.utc)
+def _get_or_create_settings(db: Session, user_id: uuid.UUID) -> UserSettings:
+    row = db.get(UserSettings, user_id)
+    if row is None:
+        row = UserSettings(user_id=user_id)
+        db.add(row)
+        db.flush()
+    return row
 
 
-def _frontend_url(settings, path: str, token: str) -> str:
-    base = (getattr(settings, "frontend_url", "") or "http://localhost:3000").rstrip("/")
-    return f"{base}{path}?token={token}"
+def _serialize_settings(row: UserSettings, *, immersion_unlocked: bool) -> dict:
+    out: dict = {}
+    for f in _SETTINGS_FIELDS:
+        val = getattr(row, f)
+        if f == "curriculum_mode" and val is not None:
+            val = val.value if hasattr(val, "value") else val
+        elif f in ("leech_threshold", "audio_rate") and val is not None:
+            val = float(val)
+        out[f] = val
+    out["immersion_unlocked"] = immersion_unlocked  # so the UI can gate the toggle
+    return out
 
 
-# --- password reset -------------------------------------------------------
+def get_settings(db: Session, user_id: uuid.UUID) -> dict:
+    row = _get_or_create_settings(db, user_id)
+    profile = db.get(Profile, user_id)
+    unlocked = bool(profile and profile.immersion_unlocked_at)
+    return _serialize_settings(row, immersion_unlocked=unlocked)
 
-def request_password_reset(
-    db: Session, *, email: str, settings, mailer: EmailProvider,
-    now: dt.datetime | None = None,
-) -> None:
-    """Always succeeds from the caller's view — see the no-enumeration rule.
 
-    An unknown address, a delivery failure, everything looks identical to the
-    requester. Only the logs (without the token) tell the operator what happened.
-    """
-    now = now or _now()
-    email_norm = (email or "").strip().lower()
-    user = db.execute(
-        select(User).where(User.email == email_norm)
-    ).scalar_one_or_none()
-
-    if user is None:
-        log.info("reset.requested_unknown_email")     # no address in the log
-        return
-
-    # Invalidate any outstanding reset tokens: only the newest link should work.
-    db.execute(
-        update(PasswordResetToken)
-        .where(
-            PasswordResetToken.user_id == user.id,
-            PasswordResetToken.consumed_at.is_(None),
-        )
-        .values(consumed_at=now)
-    )
-
-    raw = token_rules.generate_token()
-    db.add(PasswordResetToken(
-        user_id=user.id, token_hash=token_rules.hash_token(raw),
-        expires_at=token_rules.reset_expiry(now),
-    ))
+def update_settings(db: Session, user_id: uuid.UUID, patch: dict) -> dict:
+    profile = db.get(Profile, user_id)
+    unlocked = bool(profile and profile.immersion_unlocked_at)
+    clean = validate_settings_patch(patch, immersion_unlocked=unlocked)  # raises SettingsError
+    row = _get_or_create_settings(db, user_id)
+    for key, value in clean.items():
+        if key == "curriculum_mode":
+            value = CurriculumMode(value)
+        setattr(row, key, value)
     db.flush()
-
-    url = _frontend_url(settings, "/reset-password", raw)
-    try:
-        mailer.send(templates.password_reset(user.email, url))
-    except EmailDeliveryError:
-        # Don't leak the failure to the requester; the token still exists and a
-        # retry will re-send. The operator sees it in the logs.
-        log.error("reset.email_send_failed")
+    return _serialize_settings(row, immersion_unlocked=unlocked)
 
 
-def confirm_password_reset(
-    db: Session, *, token: str, new_password: str,
-    now: dt.datetime | None = None,
-) -> None:
-    now = now or _now()
-    if len(new_password or "") < MIN_PASSWORD_LENGTH:
-        raise AccountError(
-            f"Password must be at least {MIN_PASSWORD_LENGTH} characters.",
-            "weak_password", 400,
-        )
+# --- profile ---------------------------------------------------------------
 
-    row = db.execute(
-        select(PasswordResetToken).where(
-            PasswordResetToken.token_hash == token_rules.hash_token(token or "")
-        )
-    ).scalar_one_or_none()
+def get_profile(db: Session, user: User) -> dict:
+    p = db.get(Profile, user.id)
+    if p is None:
+        p = Profile(user_id=user.id, display_name=user.email.split("@")[0])
+        db.add(p)
+        db.flush()
+    return {
+        "display_name": p.display_name or "",
+        "bio": p.bio or "",
+        "timezone": p.timezone or "UTC",
+        "email": user.email,
+        "role": user.role.value,
+        # read-only stats (server-controlled)
+        "xp_total": int(p.xp_total or 0),
+        "points_balance": int(p.points_balance or 0),
+        "rank_level": int(getattr(p, "rank_level", 1) or 1),
+        "streak_current": int(p.streak_current or 0),
+        "streak_best": int(p.streak_best or 0),
+        "immersion_unlocked": bool(p.immersion_unlocked_at),
+    }
 
-    if row is None or not token_rules.is_redeemable(
-        expires_at=row.expires_at, consumed_at=row.consumed_at, now=now,
-    ):
-        # One message for missing / expired / already-used — no oracle about
-        # which tokens ever existed.
-        raise AccountError(
-            "This reset link is invalid or has expired.", "invalid_token", 400,
-        )
 
-    user = db.get(User, row.user_id)
-    if user is None:
-        raise AccountError(
-            "This reset link is invalid or has expired.", "invalid_token", 400,
-        )
-
-    user.password_hash = hash_password(new_password)
-    row.consumed_at = now
-
-    # A password reset revokes every session: resetting is what you do when you
-    # think the account is compromised, so old sessions must not survive it.
-    db.execute(
-        update(AuthSession)
-        .where(AuthSession.user_id == user.id, AuthSession.revoked_at.is_(None))
-        .values(revoked_at=now)
-    )
+def update_profile(db: Session, user: User, *, display_name: str | None = None,
+                   bio: str | None = None, timezone: str | None = None) -> dict:
+    p = db.get(Profile, user.id)
+    if p is None:
+        p = Profile(user_id=user.id)
+        db.add(p)
+        db.flush()
+    if display_name is not None:
+        p.display_name = display_name.strip()[:120]
+    if bio is not None:
+        p.bio = bio.strip()[:500]
+    if timezone is not None:
+        p.timezone = timezone.strip()[:64]
     db.flush()
+    return get_profile(db, user)
 
 
-# --- email verification ---------------------------------------------------
-
-def request_email_verification(
-    db: Session, *, user: User, settings, mailer: EmailProvider,
-    now: dt.datetime | None = None,
-) -> None:
-    """Send (or re-send) a verification link. Safe to call on signup and again
-    on demand; a new link supersedes any old one."""
-    now = now or _now()
-    if user.email_verified_at is not None:
-        return      # already verified — nothing to do
-
-    db.execute(
-        update(EmailVerificationToken)
-        .where(
-            EmailVerificationToken.user_id == user.id,
-            EmailVerificationToken.consumed_at.is_(None),
-        )
-        .values(consumed_at=now)
-    )
-
-    raw = token_rules.generate_token()
-    db.add(EmailVerificationToken(
-        user_id=user.id, token_hash=token_rules.hash_token(raw),
-        expires_at=token_rules.verify_expiry(now),
-    ))
-    db.flush()
-
-    url = _frontend_url(settings, "/verify-email", raw)
-    try:
-        mailer.send(templates.email_verification(user.email, url))
-    except EmailDeliveryError:
-        log.error("verify.email_send_failed")
-
-
-def confirm_email_verification(
-    db: Session, *, token: str, now: dt.datetime | None = None,
-) -> dict:
-    now = now or _now()
-    row = db.execute(
-        select(EmailVerificationToken).where(
-            EmailVerificationToken.token_hash == token_rules.hash_token(token or "")
-        )
-    ).scalar_one_or_none()
-
-    if row is None or not token_rules.is_redeemable(
-        expires_at=row.expires_at, consumed_at=row.consumed_at, now=now,
-    ):
-        raise AccountError(
-            "This confirmation link is invalid or has expired.",
-            "invalid_token", 400,
-        )
-
-    user = db.get(User, row.user_id)
-    if user is None:
-        raise AccountError(
-            "This confirmation link is invalid or has expired.",
-            "invalid_token", 400,
-        )
-
-    already = user.email_verified_at is not None
-    if not already:
-        user.email_verified_at = now
-    row.consumed_at = now
-    db.flush()
-    return {"verified": True, "already_verified": already}
-
-
-def verification_status(user: User) -> dict:
-    return {"email": user.email, "verified": user.email_verified_at is not None}
+__all__ = ["get_settings", "update_settings", "get_profile", "update_profile", "SettingsError"]

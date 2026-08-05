@@ -47,8 +47,8 @@ export function Header() {
                 className="absolute right-0 z-10 mt-2 w-48 rounded-card border border-terraza-dash bg-terraza-card p-1 shadow-lg"
               >
                 <div className="px-3 py-2 text-xs text-terraza-soft">{user?.email}</div>
-                <MenuItem href="/profile">profile</MenuItem>
-                <MenuItem href="/settings">settings</MenuItem>
+                <MenuItem href="/dashboard">profile</MenuItem>
+                <MenuItem href="/dashboard">settings</MenuItem>
                 {showAdmin && <MenuItem href="/admin">admin</MenuItem>}
                 <button
                   role="menuitem"

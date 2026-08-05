@@ -1,69 +1,52 @@
-// Password reset, email verification, and decks.
+// Settings + profile client.
 import { request } from "./http";
 
-export interface DeckSummary {
-  type: "vocabulary" | "grammar" | "intermissions";
-  title: string;
-  description: string;
-  count: number;
+export interface Settings {
+  theme: string;
+  font_size: string;
+  color_theme: string;
+  lesson_batch_size: number;
+  review_order: string;
+  curriculum_mode: string;
+  back_to_back: boolean;
+  back_to_back_order: string;
+  show_srs_indicator: boolean;
+  leech_threshold: number;
+  review_batch_enabled: boolean;
+  review_batch_size: number;
+  reveal_full_answer: boolean;
+  allow_cheating: boolean;
+  allow_skipping: boolean;
+  undo_enabled: boolean;
+  accept_user_synonyms: boolean;
+  intermissions_enabled: boolean;
+  immersion_mode: boolean;
+  dialect: string;
+  audio_autoplay: boolean;
+  audio_voice: string;
+  audio_rate: number;
+  immersion_unlocked: boolean;
 }
 
-export interface DeckItem {
-  item_type: "vocabulary" | "grammar" | "intermission";
-  item_id: string;
-  term: string;
-  translation: string;
-  part_of_speech?: string | null;
-  article?: string | null;
-  level?: number | null;
-  learned?: boolean | null;
-  srs_stage?: number | null;
-  srs_stage_name?: string | null;
-  next_review_at?: string | null;
-  body?: string | null;
-  kind?: string | null;
-  viewed_at?: string | null;
-}
-
-export interface DeckPage {
-  type: string;
-  total: number;
-  limit: number;
-  offset: number;
-  items: DeckItem[];
+export interface Profile {
+  display_name: string;
+  bio: string;
+  timezone: string;
+  email: string;
+  role: string;
+  xp_total: number;
+  points_balance: number;
+  rank_level: number;
+  streak_current: number;
+  streak_best: number;
+  immersion_unlocked: boolean;
 }
 
 export const account = {
-  forgotPassword: (email: string) =>
-    request<{ ok: boolean; message: string }>("/api/v1/auth/forgot-password", {
-      method: "POST",
-      body: JSON.stringify({ email }),
-    }),
-
-  resetPassword: (token: string, newPassword: string) =>
-    request<{ ok: boolean; message: string }>("/api/v1/auth/reset-password", {
-      method: "POST",
-      body: JSON.stringify({ token, new_password: newPassword }),
-    }),
-
-  sendVerification: () =>
-    request<{ ok: boolean; message: string }>("/api/v1/auth/send-verification", {
-      method: "POST",
-    }),
-
-  verifyEmail: (token: string) =>
-    request<{ verified: boolean; already_verified: boolean }>(
-      "/api/v1/auth/verify-email",
-      { method: "POST", body: JSON.stringify({ token }) },
-    ),
-
-  verificationStatus: () =>
-    request<{ email: string; verified: boolean }>("/api/v1/auth/verification-status"),
-};
-
-export const decks = {
-  list: () => request<DeckSummary[]>("/api/v1/me/decks"),
-
-  items: (type: string, limit = 50, offset = 0) =>
-    request<DeckPage>(`/api/v1/me/decks/${type}?limit=${limit}&offset=${offset}`),
+  getSettings: () => request<Settings>("/api/v1/me/settings"),
+  updateSettings: (patch: Partial<Record<keyof Settings, unknown>>) =>
+    request<Settings>("/api/v1/me/settings", { method: "PATCH", body: JSON.stringify(patch) }),
+  getProfile: () => request<Profile>("/api/v1/me/profile"),
+  updateProfile: (patch: { display_name?: string; bio?: string; timezone?: string }) =>
+    request<Profile>("/api/v1/me/profile", { method: "PATCH", body: JSON.stringify(patch) }),
 };

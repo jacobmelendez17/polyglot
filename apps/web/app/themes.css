@@ -1,0 +1,155 @@
+/* Theme variables (spec §16 appearance settings).
+ *
+ * Each token is an "R G B" triplet so Tailwind's `rgb(var(--x) / <alpha-value>)`
+ * colours support opacity modifiers (e.g. bg-terraza-danger/10). The active theme
+ * is chosen by two attributes the ThemeProvider sets on <html>:
+ *   data-color-theme = terraza | jacaranda | selva | playa
+ *   data-theme       = light | dark   (resolved from the "system" preference)
+ * Combined dark selectors carry higher specificity than the light color blocks,
+ * so a dark override always wins when both apply.
+ *
+ * Colour choices are Latin-America-inspired starting points; contrast should be
+ * audited per WCAG before launch (see R-88).
+ */
+
+/* ---- terraza (default) — adobe desert -------------------------------- */
+:root,
+[data-color-theme="terraza"] {
+  --terraza-bg: 247 239 231;
+  --terraza-grid: 239 226 212;
+  --terraza-ink: 62 68 64;
+  --terraza-soft: 150 147 138;
+  --terraza-accent: 127 166 155;
+  --terraza-accentInk: 31 46 41;
+  --terraza-pill: 233 220 204;
+  --terraza-green: 191 216 206;
+  --terraza-pink: 235 195 180;
+  --terraza-gold: 239 207 142;
+  --terraza-dash: 225 211 194;
+  --terraza-card: 255 255 255;
+  --terraza-danger: 201 123 107;
+}
+[data-theme="dark"],
+[data-theme="dark"][data-color-theme="terraza"] {
+  --terraza-bg: 30 34 32;
+  --terraza-grid: 42 48 45;
+  --terraza-ink: 232 228 220;
+  --terraza-soft: 150 150 140;
+  --terraza-accent: 143 182 171;
+  --terraza-accentInk: 18 26 23;
+  --terraza-pill: 52 60 56;
+  --terraza-green: 120 160 145;
+  --terraza-pink: 190 135 118;
+  --terraza-gold: 205 178 120;
+  --terraza-dash: 60 68 63;
+  --terraza-card: 38 44 41;
+  --terraza-danger: 214 132 116;
+}
+
+/* ---- jacaranda — lavender + green ------------------------------------ */
+[data-color-theme="jacaranda"] {
+  --terraza-bg: 245 242 250;
+  --terraza-grid: 233 228 244;
+  --terraza-ink: 58 52 72;
+  --terraza-soft: 148 142 165;
+  --terraza-accent: 138 116 196;
+  --terraza-accentInk: 247 244 252;
+  --terraza-pill: 232 226 245;
+  --terraza-green: 190 210 200;
+  --terraza-pink: 225 200 235;
+  --terraza-gold: 240 210 150;
+  --terraza-dash: 224 216 238;
+  --terraza-card: 255 255 255;
+  --terraza-danger: 200 110 120;
+}
+[data-theme="dark"][data-color-theme="jacaranda"] {
+  --terraza-bg: 32 28 42;
+  --terraza-grid: 44 40 56;
+  --terraza-ink: 232 226 244;
+  --terraza-soft: 160 152 176;
+  --terraza-accent: 175 152 224;
+  --terraza-accentInk: 22 18 30;
+  --terraza-pill: 56 50 72;
+  --terraza-green: 128 158 144;
+  --terraza-pink: 178 148 198;
+  --terraza-gold: 208 178 122;
+  --terraza-dash: 64 58 82;
+  --terraza-card: 40 36 52;
+  --terraza-danger: 212 122 132;
+}
+
+/* ---- selva — jungle green ------------------------------------------- */
+[data-color-theme="selva"] {
+  --terraza-bg: 240 246 240;
+  --terraza-grid: 226 238 226;
+  --terraza-ink: 40 56 44;
+  --terraza-soft: 130 148 132;
+  --terraza-accent: 61 138 92;
+  --terraza-accentInk: 242 248 242;
+  --terraza-pill: 220 236 222;
+  --terraza-green: 176 214 186;
+  --terraza-pink: 224 200 180;
+  --terraza-gold: 224 200 120;
+  --terraza-dash: 214 232 216;
+  --terraza-card: 255 255 255;
+  --terraza-danger: 200 110 95;
+}
+[data-theme="dark"][data-color-theme="selva"] {
+  --terraza-bg: 22 32 26;
+  --terraza-grid: 32 44 36;
+  --terraza-ink: 224 236 226;
+  --terraza-soft: 140 160 144;
+  --terraza-accent: 104 190 136;
+  --terraza-accentInk: 14 22 17;
+  --terraza-pill: 40 56 44;
+  --terraza-green: 110 164 130;
+  --terraza-pink: 180 150 128;
+  --terraza-gold: 206 178 116;
+  --terraza-dash: 48 64 52;
+  --terraza-card: 28 40 32;
+  --terraza-danger: 206 122 106;
+}
+
+/* ---- playa — coastal turquoise + coral ------------------------------ */
+[data-color-theme="playa"] {
+  --terraza-bg: 246 244 236;
+  --terraza-grid: 236 232 220;
+  --terraza-ink: 44 58 62;
+  --terraza-soft: 140 150 150;
+  --terraza-accent: 46 166 176;
+  --terraza-accentInk: 246 250 250;
+  --terraza-pill: 226 236 236;
+  --terraza-green: 168 214 208;
+  --terraza-pink: 244 180 160;
+  --terraza-gold: 244 214 150;
+  --terraza-dash: 222 230 228;
+  --terraza-card: 255 255 255;
+  --terraza-danger: 210 110 95;
+}
+[data-theme="dark"][data-color-theme="playa"] {
+  --terraza-bg: 20 32 34;
+  --terraza-grid: 30 44 46;
+  --terraza-ink: 224 236 236;
+  --terraza-soft: 140 158 158;
+  --terraza-accent: 88 196 206;
+  --terraza-accentInk: 12 22 24;
+  --terraza-pill: 40 56 58;
+  --terraza-green: 110 170 164;
+  --terraza-pink: 208 138 118;
+  --terraza-gold: 214 184 124;
+  --terraza-dash: 48 66 66;
+  --terraza-card: 26 40 42;
+  --terraza-danger: 210 126 110;
+}
+
+/* ---- font size (§16) — rem-based, so Tailwind sizing scales with it -- */
+html { font-size: 16px; }
+html[data-font-size="sm"] { font-size: 14px; }
+html[data-font-size="md"] { font-size: 16px; }
+html[data-font-size="lg"] { font-size: 18px; }
+html[data-font-size="xl"] { font-size: 20px; }
+
+/* Smooth the flip between light/dark without fighting reduced-motion. */
+@media (prefers-reduced-motion: no-preference) {
+  body { transition: background-color 200ms ease, color 200ms ease; }
+}
