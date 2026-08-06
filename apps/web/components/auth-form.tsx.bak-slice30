@@ -5,9 +5,6 @@ import { useState } from "react";
 import { ApiClientError } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { Button, Card, FormError, Input, Label, TextLink } from "./ui";
-import { checkPassword } from "@/lib/password";
-import { PasswordChecklist } from "./password-checklist";
-import { OAuthButtons } from "./oauth-buttons";
 
 type Mode = "login" | "signup";
 
@@ -32,8 +29,8 @@ export function AuthForm({ mode }: { mode: Mode }) {
         setError("Please enter your name.");
         return;
       }
-      if (!Object.values(checkPassword(password)).every(Boolean)) {
-        setError("Your password doesn't meet all the requirements below yet.");
+      if (password.length < 8) {
+        setError("Password must be at least 8 characters.");
         return;
       }
       if (password !== confirm) {
@@ -65,6 +62,9 @@ export function AuthForm({ mode }: { mode: Mode }) {
         <span className="text-2xl lowercase tracking-cozy">
           polyglot <span className="text-terraza-accent">✦</span>
         </span>
+        <h1 className="mt-4 text-2xl lowercase tracking-cozy">
+          {isSignup ? "empieza tu viaje" : "bienvenido de nuevo"}
+        </h1>
         <p className="mt-1 text-sm text-terraza-soft">
           {isSignup ? "create your account to begin" : "sign in to keep learning"}
         </p>
@@ -99,7 +99,6 @@ export function AuthForm({ mode }: { mode: Mode }) {
               placeholder={isSignup ? "at least 8 characters" : "your password"}
             />
           </div>
-          {isSignup && <PasswordChecklist password={password} />}
           {isSignup && (
             <div>
               <Label htmlFor="confirm">confirm password</Label>
@@ -117,7 +116,6 @@ export function AuthForm({ mode }: { mode: Mode }) {
             {submitting ? "un momento…" : isSignup ? "create account" : "sign in"}
           </Button>
         </form>
-        <OAuthButtons />
       </Card>
 
       <div className="flex flex-col items-center gap-2 text-center text-sm text-terraza-soft">
