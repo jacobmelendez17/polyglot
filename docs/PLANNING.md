@@ -2292,3 +2292,51 @@ that's the next lesson-session slice, done carefully rather than guessed.
 | R-98 | The "theme" filter groups by part-of-speech, not real lesson themes (food/travel/…), which aren't stored per item. | ⚙ Add a `theme`/`lesson_batch` label to items (or surface the planner's lesson title without its write side-effect), then group by it. |
 | R-99 | "begin lesson" enters the standard lessons flow; the selected set isn't yet taught as a custom session. | ⚙ Add `POST /lessons/custom/{start,complete}` reusing the lesson-complete SRS-init + XP ledger; wire the runner to the stored selection. |
 | R-100 | Selectable lists items across all levels regardless of unlock state. | ⚙ If desired, hide locked levels' items (compute unlock like the levels page) — or leave visible as a "what's ahead" preview. |
+
+---
+## Slice 32 — Practice playground + Admin sandbox (by request) (2026-08-09)
+
+Second slice of the dashboard/lesson/practice batch. Lesson-session rework (stationary
+back/next, details/reading/examples tabs, hotkeys) is still its own upcoming slice.
+
+**Practice playground** (`/practice`). Rebuilt from one flat grid into three labelled,
+colour-tinted sections — **drills** (fill in the blank, verb conjugation, weak items, listening,
+speaking), **test yourself** (the three testing maps: cefr, app, life), **read** (the reading
+library) — so a learner finds what they want by section instead of reading every card. The
+`testing` and `reading` links are gone from the header nav; they're practice tiles now, still
+pointing at the same `/tests` and `/reading` routes. The page `<h1>` is bigger (`text-3xl` /
+`sm:text-4xl`, up from `text-2xl`) to read as the hub it now is.
+
+**Admin sandbox** (`/dev`). This already existed — "unlock all items" / "make reviews due now" /
+SRS time-scale controls, gated on the `dev_panel` capability — but was unreachable: no link to it
+anywhere in the UI, and it 500'd on load. Fixed both: the account-menu dropdown now shows
+"dev sandbox" for accounts with `dev_panel` (right under "admin"), and the page loads. Verified
+live: unlock-all populated 524 items and a previously-empty drill (`weak items`) immediately had
+real material.
+
+**Unrelated regression fixed in passing.** `/dev`'s crash wasn't new — it was the same pattern as
+the `/decks` crash fixed earlier this batch: a prior commit (Stripe billing, `95e4192`) overwrote
+`billing-api.ts` wholesale and dropped the `dev`/`DevState` export the page depended on. Restored
+it as its own `lib/dev-sandbox-api.ts` (mirroring `lib/decks-api.ts`) rather than back into
+`billing-api.ts`, so a future rewrite of that file can't collide with it again. Backend contract
+(`/api/v1/dev/*`) was untouched and still matches.
+
+**No migration, no schema change.**
+
+**Tests:** none added — no new pure logic to unit-test; verified live in a headless browser
+(practice sections render, header no longer has testing/reading, `/dev` typechecks, loads, and
+its two main actions complete without console errors).
+
+### Remaining in this batch (upcoming slice)
+- **Lesson-session rework:** stationary bottom back/next, "say it" moved to the bottom, centered
+  50%-transparent card, details/reading/examples tabs with scroll-spy mini-header + back-to-top,
+  ←/→ hotkeys, and the end-of-lesson-quiz enter-to-advance fix.
+
+### Known pre-existing breakage (not fixed, out of scope this slice)
+
+Same overwrite pattern as `/decks` and `/dev`, still broken: `/reset-password` and `/verify-email`
+call `account.forgotPassword` / `resetPassword` / `verifyEmail`, none of which exist on the current
+`account-api.ts` (rewritten for settings/profile in `449ba08`) — and per R-97 above, the backend
+routes they'd call don't exist either, so this needs the verification flow built, not just a client
+restore. `auth-form.tsx` also has an unrelated pre-existing type error (`onboarding_completed` on
+`never`). Flagged for a future slice.

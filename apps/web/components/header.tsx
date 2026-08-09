@@ -6,11 +6,13 @@ import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 
 const ADMIN_CAP = "admin_panel";
+const DEV_CAP = "dev_panel";
 
 export function Header() {
   const { user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const showAdmin = user?.capabilities.includes(ADMIN_CAP);
+  const showDev = user?.capabilities.includes(DEV_CAP);
 
   return (
     <header className="border-b border-terraza-dash">
@@ -30,8 +32,6 @@ export function Header() {
             practice
           </Link>
             <Link href="/features" className="rounded-full px-4 py-2 text-terraza-soft hover:bg-terraza-pill">unlocks</Link>
-            <Link href="/tests" className="rounded-full px-4 py-2 text-terraza-soft hover:bg-terraza-pill">testing</Link>
-            <Link href="/reading" className="rounded-full px-4 py-2 text-terraza-soft hover:bg-terraza-pill">reading</Link>
 
           <div className="relative">
             <button
@@ -50,6 +50,7 @@ export function Header() {
                 <MenuItem href="/profile">profile</MenuItem>
                 <MenuItem href="/settings">settings</MenuItem>
                 {showAdmin && <MenuItem href="/admin">admin</MenuItem>}
+                {showDev && <MenuItem href="/dev">dev sandbox</MenuItem>}
                 <button
                   role="menuitem"
                   onClick={() => { setMenuOpen(false); logout(); }}

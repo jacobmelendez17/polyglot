@@ -5,7 +5,8 @@ import { useEffect, useState } from "react";
 import { Header } from "@/components/header";
 import { Protected } from "@/components/protected";
 import { Card } from "@/components/ui";
-import { dev, type DevState } from "@/lib/billing-api";
+import { dev, type DevState } from "@/lib/dev-sandbox-api";
+import { ApiError } from "@/lib/http";
 
 // The admin dev sandbox. This page is only useful to an account holding the
 // dev_panel capability — every action 403s otherwise — so it fails gracefully
@@ -35,7 +36,7 @@ function DevPanel() {
   useEffect(() => {
     dev.state()
       .then(setState)
-      .catch((e) => { if (e?.status === 403) setForbidden(true); });
+      .catch((e: ApiError) => { if (e.status === 403) setForbidden(true); });
   }, []);
 
   async function run(label: string, fn: () => Promise<string>) {
