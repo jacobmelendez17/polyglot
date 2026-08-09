@@ -2340,3 +2340,64 @@ call `account.forgotPassword` / `resetPassword` / `verifyEmail`, none of which e
 routes they'd call don't exist either, so this needs the verification flow built, not just a client
 restore. `auth-form.tsx` also has an unrelated pre-existing type error (`onboarding_completed` on
 `never`). Flagged for a future slice.
+
+---
+## Slice 33 — Lesson-session rework (by request) (2026-08-09)
+
+Third and last slice of the dashboard/lesson/practice batch, scoped to the teaching phase of
+`/levels/[level]/lessons/[lesson]` (the quiz phase's layout is unchanged, aside from the enter-fix
+below).
+
+**The card.** `ItemCard` is restructured into a pinned block (type tag, term + audio, translation
+— fixed content, so it never changes height) and a scrollable info area below it, ending in three
+tabs — **details / reading / examples** — sitting on the card's bottom border. Clicking a tab
+`scrollIntoView`s its section; each section has `scroll-mt-24` so it lands cleanly under the
+sticky mini-header. Background is the same card colour at 50% opacity with a light backdrop-blur
+(`bg-terraza-card/50 backdrop-blur-sm`) so it stays legible over the page's background pattern.
+
+- **details**: part of speech, article, gender, structure, meaning, explanation — whichever the
+  item has.
+- **reading**: the pronunciation guide that used to be inline under the term ("say it: …", IPA) —
+  moved here instead of floating mid-card, which was the actual source of the layout jumping
+  around, not just the buttons.
+- **examples**: sentence links, fetched on demand via the existing `GET /api/v1/items/{type}/{id}`
+  (same endpoint the item-detail page already uses for this) and cached per item so flipping back
+  doesn't refetch. No backend changes — the data and the endpoint already existed, just unused
+  here.
+
+**Stationary back/next.** Pulled out of the card's flow entirely into a fixed bar at the bottom of
+the viewport (`fixed inset-x-0 bottom-0`), so a taller card never moves them — this is what
+actually fixes "the buttons move around," structurally, rather than just reducing how often it
+happens.
+
+**Scroll behavior.** A sentinel sits right after the pinned block; once it scrolls out of view
+(`IntersectionObserver`), a sticky mini-header appears at the top of the viewport showing the
+current item's term + translation, and a "↑ top" button appears fixed bottom-right. Changing items
+resets the tab to `details`, resets scroll to the top, and re-arms the sentinel.
+
+**Hotkeys.** ← / → mirror the back/next buttons exactly, including → becoming "quiz me" on the
+last item — same function the button's `onClick` calls, not a separate reimplementation. Guarded
+against modifier keys and against firing while a text input has focus (there isn't one in the
+teaching phase, but the guard costs nothing and matches the pattern in `use-enter-advance.ts`).
+
+**Quiz enter-to-advance.** The lesson's end-of-lesson quiz never adopted `useEnterAdvance` — the
+hook reviews already uses to let Enter both submit and then advance. One line
+(`useEnterAdvance({ active: phase === "quizFeedback", onAdvance: nextQuiz })`) closes the gap; the
+"continue" step now works exactly like reviews' feedback step.
+
+**No migration, no schema change.**
+
+**Tests:** none added — this is layout/interaction wiring over existing data, not new pure logic.
+Verified live in a headless browser: card renders (empty and populated details/reading/examples
+states), tab-click scroll, ←/→ navigate and correctly hand off to "quiz me" on the last item,
+mini-header + back-to-top appear/disappear correctly at realistic and edge-case viewport heights,
+and the second Enter now advances past quiz feedback (confirmed by the input reappearing, not by
+the queue count — a wrong answer cycles to the back of the queue without changing its length, which
+would have been a false negative).
+
+### Batch complete
+
+This closes out the dashboard/lesson/practice batch started at Slice 31: dashboard launch +
+Customize Lessons (31), Practice playground + Admin sandbox (32), Lesson-session rework (33).
+Remaining open items are tracked above (R-98–R-100) and in "Known pre-existing breakage" — none of
+them block this batch, they're pre-existing or deliberately deferred.
