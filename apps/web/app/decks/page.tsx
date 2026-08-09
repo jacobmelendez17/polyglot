@@ -6,7 +6,7 @@ import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
 import { Protected } from "@/components/protected";
 import { Card } from "@/components/ui";
-import { decks, type DeckSummary } from "@/lib/account-api";
+import { decks, type DeckSummary } from "@/lib/decks-api";
 
 const DECK_GLYPH: Record<string, string> = {
   vocabulary: "✦",

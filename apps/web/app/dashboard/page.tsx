@@ -1,22 +1,26 @@
 "use client";
 
+import { DashboardActions } from "@/components/dashboard-actions";
 import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
 import { IntermissionGate } from "@/components/intermission-modal";
 import { Protected } from "@/components/protected";
 import { GuidedTour } from "@/components/tour";
 import { WidgetGrid } from "@/components/widget-grid";
-import { ActionButtons } from "@/components/widgets";
+import { WelcomeWidget } from "@/components/widgets";
 
 export default function DashboardPage() {
   return (
     <Protected>
       <Header />
       <main className="mx-auto max-w-7xl px-4 py-8">
-        {/* Hero: the two big action buttons. Wrapped so the tour has something
-            to point at without reaching inside the widgets module. */}
-        <div data-tour="actions">
-          <ActionButtons />
+        {/* Pinned above the actions, not part of the customizable grid. */}
+        <WelcomeWidget />
+
+        {/* Hero: the two action cards, each with its own buttons. Wrapped so the
+            tour has something to point at without reaching inside the module. */}
+        <div data-tour="actions" className="mt-4">
+          <DashboardActions />
         </div>
 
         <div className="mt-4">

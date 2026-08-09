@@ -9,7 +9,7 @@ import { IntermissionCard } from "@/components/intermission-modal";
 import { Protected } from "@/components/protected";
 import { SrsPill } from "@/components/progress-bits";
 import { Card } from "@/components/ui";
-import { decks, type DeckItem } from "@/lib/account-api";
+import { decks, type DeckItem } from "@/lib/decks-api";
 import { relativeTime } from "@/lib/items-api";
 
 const PAGE = 40;

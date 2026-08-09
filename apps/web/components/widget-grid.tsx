@@ -109,8 +109,10 @@ export function WidgetGrid() {
     );
   }
 
-  const widgets = config.layout.widgets;
-  const catalog = config.catalog;
+  // "welcome" is pinned above the grid by the dashboard page itself (not part
+  // of the customizable layout), so it's excluded here and from "add a card".
+  const widgets = config.layout.widgets.filter((w) => w.key !== "welcome");
+  const catalog = config.catalog.filter((c) => c.key !== "welcome");
   const addable = availableToAdd(widgets, catalog);
   const titleFor = (key: string) =>
     catalog.find((c) => c.key === key)?.title ?? key;
