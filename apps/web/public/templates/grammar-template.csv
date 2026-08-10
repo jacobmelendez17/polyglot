@@ -1,0 +1,3 @@
+Word,Translation,Level,Batch,PoS,Structure,Meaning,Example,Example Tran.,Tags
+y,and,1,5,conjunction,,"joins two words or phrases","pan y agua","bread and water",connectors
+Article + noun + adjective agreement,,1,5,,article + noun + adjective,"Articles, nouns, and adjectives agree in gender and number.","la casa blanca","the white house",agreement

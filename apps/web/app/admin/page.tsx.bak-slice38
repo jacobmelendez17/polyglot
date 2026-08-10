@@ -72,26 +72,6 @@ function ImportSection({ onImported }: { onImported: () => void }) {
         upload a CSV to load {kind} into the database as drafts. nothing publishes automatically —
         you review and publish below.
       </p>
-      <div data-testid="csv-import-help" className="mb-4 rounded-[12px] border border-terraza-dash bg-terraza-bg/60 p-3 text-sm text-terraza-soft">
-        <p className="mb-2">
-          {kind === "grammar" ? (
-            <>needs a term column (<code>Grammar</code> or <code>Word</code>) and a <code>Level</code>. the
-            gloss can live in <code>Translation</code> or <code>Meaning</code>. everything else is optional.</>
-          ) : (
-            <>needs <code>Word</code>, <code>Translation</code>, <code>Level</code>, and <code>Batch</code>.
-            everything else is optional.</>
-          )}
-          {" "}headers are case-insensitive and accept common aliases (Unit→Level, Lesson→Batch, Term→Word).
-        </p>
-        <div className="flex flex-wrap items-center gap-4">
-          <a className="underline hover:text-terraza-accent" href="/templates/vocabulary-template.csv" download>
-            download vocabulary template
-          </a>
-          <a className="underline hover:text-terraza-accent" href="/templates/grammar-template.csv" download>
-            download grammar template
-          </a>
-        </div>
-      </div>
       <div className="flex flex-wrap items-center gap-3">
         <select
           value={kind}

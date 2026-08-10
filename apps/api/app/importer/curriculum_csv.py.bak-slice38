@@ -26,67 +26,6 @@ from io import StringIO
 from app.domain.normalize import normalize_term
 
 EMPTY_TOKENS = {"", "n/a", "na", "none", "-"}
-
-# --- slice 38: forgiving header aliasing ------------------------------------
-# Real-world sheets name columns inconsistently ("Word" vs "Grammar" vs "Term",
-# "Level" vs "Unit"). This reader maps recognised headers to the canonical names
-# the parsers below already read, so the same code accepts many CSV shapes.
-# Unknown columns pass through untouched. Uses only stdlib already imported.
-_HEADER_ALIASES: dict[str, set[str]] = {
-    "Word":          {"word", "grammar", "grammar point", "term", "item",
-                      "vocab", "vocabulary", "entry", "phrase"},
-    "Translation":   {"translation", "english", "gloss", "translation (en)", "en"},
-    "Level":         {"level", "unit", "module", "lvl"},
-    "Batch":         {"batch", "lesson", "group"},
-    "PoS":           {"pos", "part of speech", "partofspeech", "word type", "type"},
-    "Structure":     {"structure", "pattern", "structure pattern", "form"},
-    "Meaning":       {"meaning", "notes", "note", "explanation", "description",
-                      "definition", "usage"},
-    "Pronunciation": {"pronunciation", "pron", "reading"},
-    "IPA":           {"ipa"},
-    "Synonyms":      {"synonyms", "synonym"},
-    "Variants":      {"variants", "variations", "variant"},
-    "Castilian":     {"castilian", "spain", "castilian variant", "peninsular"},
-}
-
-
-def _norm_header(h: str | None) -> str:
-    return " ".join((h or "").strip().lower().split())
-
-
-class _AliasReader:
-    """csv.DictReader wrapper that remaps recognised headers to canonical names."""
-
-    def __init__(self, csv_text: str) -> None:
-        self._reader = csv.DictReader(StringIO(csv_text))
-        self._map: dict[str, str] = {}
-        for h in (self._reader.fieldnames or []):
-            nk = _norm_header(h)
-            for canon, names in _HEADER_ALIASES.items():
-                if nk in names:
-                    self._map[h] = canon
-                    break
-        # A term column is required by every parser.
-        self.term_found = "Word" in self._map.values()
-
-    def __iter__(self):
-        for raw in self._reader:
-            row = dict(raw)
-            for actual, canon in self._map.items():
-                v = raw.get(actual)
-                if v is not None and v.strip().lower() not in EMPTY_TOKENS:
-                    row[canon] = v
-            # Expose the term under both names the two parsers look for.
-            if "Word" in row:
-                row.setdefault("Grammar ", row["Word"])
-                row.setdefault("Grammar", row["Word"])
-            yield row
-
-
-def _alias_reader(csv_text: str) -> _AliasReader:
-    return _AliasReader(csv_text)
-# --- end slice 38 -----------------------------------------------------------
-
 EXPECTED_VOCAB_PER_LEVEL = 48
 EXPECTED_GRAMMAR_PER_LEVEL = 12
 EXPECTED_BATCHES = 4
@@ -215,12 +154,8 @@ def _int_or_none(value: str | None) -> int | None:
 
 def parse_vocabulary(csv_text: str) -> tuple[list[ParsedVocab], ImportReport]:
     report = ImportReport(kind="vocabulary")
-    reader = _alias_reader(csv_text)
+    reader = csv.DictReader(StringIO(csv_text))
     items: list[ParsedVocab] = []
-    if not reader.term_found:
-        report.issues.append(Issue(Severity.error, 1, "columns",
-            "No term column found. Add a header named 'Word' (vocabulary). "
-            "See the template linked on the import page."))
 
     for idx, raw in enumerate(reader, start=2):  # header is row 1
         term = _clean(raw.get("Word"))
@@ -333,13 +268,8 @@ def _check_vocab_structure(items: list[ParsedVocab], report: ImportReport) -> No
 
 def parse_grammar(csv_text: str) -> tuple[list[ParsedGrammar], ImportReport]:
     report = ImportReport(kind="grammar")
-    reader = _alias_reader(csv_text)
+    reader = csv.DictReader(StringIO(csv_text))
     items: list[ParsedGrammar] = []
-    _missing_structure = 0
-    if not reader.term_found:
-        report.issues.append(Issue(Severity.error, 1, "columns",
-            "No term column found. Add a header named 'Grammar' or 'Word'. "
-            "See the template linked on the import page."))
 
     # The grammar sheet header has a trailing space: \"Grammar \".
     for idx, raw in enumerate(reader, start=2):
@@ -348,8 +278,7 @@ def parse_grammar(csv_text: str) -> tuple[list[ParsedGrammar], ImportReport]:
             continue
         report.rows_seen += 1
         level = _int_or_none(raw.get("Level"))
-        # Grammar sheets often keep the gloss in Meaning, not Translation.
-        translation = _clean(raw.get("Translation")) or _clean(raw.get("Meaning"))
+        translation = _clean(raw.get("Translation"))
         structure = _clean(raw.get("Structure"))
 
         if level is None:
@@ -358,7 +287,9 @@ def parse_grammar(csv_text: str) -> tuple[list[ParsedGrammar], ImportReport]:
             )
             continue
         if not structure:
-            _missing_structure += 1
+            report.issues.append(
+                Issue(Severity.warning, idx, "Structure", "missing structure pattern", title)
+            )
 
         items.append(
             ParsedGrammar(
@@ -380,8 +311,4 @@ def parse_grammar(csv_text: str) -> tuple[list[ParsedGrammar], ImportReport]:
                       f"level {level} has {n} grammar points "
                       f"(expected {EXPECTED_GRAMMAR_PER_LEVEL})")
             )
-    if _missing_structure:
-        report.issues.append(Issue(Severity.warning, 0, "Structure",
-            f"{_missing_structure} grammar point(s) have no structure pattern "
-            "— optional, you can add patterns later"))
     return items, report

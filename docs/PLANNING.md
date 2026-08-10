@@ -2617,3 +2617,62 @@ change.**
 | R-99 (updated) | Feel is filler: `PEN_SPEED=0.14`, `HOLD_MS=1600`, `ERASE_RATIO=0.6`, `EM_PER_UNIT=0.043`, `STROKE_UNITS=2.1`. | ⚙ Tune in `lib/handwrite.ts` (pace) and `lib/hero-strokes.ts` (size/weight), or per-instance via the component's `scale`/`strokeUnits` props. |
 | R-103 | Still a geometric cursive, not literally the owner's hand. | ⚙ Option B on the table: a small local capture tool to record real handwriting as SVG and bake it into the same pipeline. |
 | R-102 | "to fluency" shifts as different-width words cycle. | ⚙ Reserve the widest word's width if the reflow reads as jumpy. |
+
+---
+## Slice 38 — Curriculum import accepts real-world CSVs (§22/§24) (2026-08-10)
+
+**Problem.** The owner's grammar sheet (`Spanish_Stuff_-_Grammar__2_.csv`, 187 rows) imported as
+"0 created" with no obvious reason. Root cause: the grammar parser reads the term from a column
+named `Grammar` (the original sheet used `Grammar ,Translation,Structure,Level,PoS,…`), but the new
+sheet puts the term under **`Word`** and the gloss under **`Meaning`**, leaving `Translation`/`PoS`
+blank. So every row's title read as empty and was silently skipped; imported as "vocabulary" instead,
+all 187 rows hard-failed because vocab requires `Translation`.
+
+**Fix — forgiving header aliasing (pure parser, `curriculum_csv.py`).**
+- New `_AliasReader` remaps recognised headers (case-insensitive, space-tolerant, plus synonyms:
+  Word/Grammar/Term/Item, Level/Unit/Module, Batch/Lesson, PoS/"Part of Speech"/"Word Type",
+  Structure/Pattern, Meaning/Notes/Description, Variants/Variations, Castilian/Spain, …) to the
+  canonical names the parsers already read. Unknown columns pass through untouched; a detected term
+  column is exposed under both `Word` and `Grammar ` so either parser finds it.
+- **Grammar** now falls back to `Meaning` for the gloss when `Translation` is blank (anchored to the
+  grammar-specific translation+structure block so the identical **vocabulary** translation line is
+  left untouched — vocab still hard-requires `Translation`, preserving existing tests).
+- A missing term column now yields a clear `columns` error ("No term column found… see the
+  template") instead of a silent 0-row import.
+- The 187 per-row "missing structure" warnings are aggregated into a single line.
+
+**Verified against the real file.** All 187 rows import, 0 errors, gloss pulled from Meaning
+(y→and, con→with, "no + conjugated verb"→"Basic negation."), levels 1–16 (L16 has 7 — a real note).
+Also verified: a vocab sheet with `Term`/`Unit`/`Lesson` headers imports; a file with no term column
+surfaces the `columns` error; unknown columns are ignored; the patched module `py_compile`s; both
+patchers are idempotent and abort-without-writing on divergence.
+
+**Also shipped**
+- Starter templates at `apps/web/public/templates/{vocabulary,grammar}-template.csv` (parse with 0
+  errors), linked from the import panel.
+- Admin import panel now shows the required columns per kind, notes the aliases, and links the
+  templates (anchored insert, esbuild-verified).
+- `docs/CSV_IMPORT.md` — the full valid-CSV reference, incl. "re-import = edit/move" (import is
+  idempotent on (level, normalised term), so editing `Level`/`Batch` and re-importing **moves** an
+  item; changing cells **edits**; adding rows **adds** — the CSV doubles as an editor until the
+  in-app editor lands).
+- Tests: `tests/test_importer_aliases.py` (Word-header grammar + Meaning gloss; aliased vocab
+  headers; missing-term-column error; unknown columns ignored; aggregated structure warning).
+
+**No migration, no schema change.** Parser + UI copy + docs + tests only.
+
+### Deferred to Slice 39 — in-app curriculum editor (the rest of the ask)
+
+The point-and-click side of "fully edit / delete / add / move into any unit or batch" is the next
+slice: `POST/PATCH/DELETE /admin/content/{vocabulary,grammar}` (+ `/move` and `/restore`), Pydantic
+validation, audit logging + soft-delete (§22), and an admin editor UI with an edit form, archive/
+restore, and level/batch move (drag-and-drop with a keyboard-accessible selector fallback, §29).
+Split out so the import fix ships now, fully tested, rather than waiting on the larger UI.
+
+### Open questions
+
+| # | Item | Filler decision (changeable) |
+|---|---|---|
+| R-104 | Grammar `Batch` (all 5 in the sheet) isn't stored on `GrammarPoint` (grammar is one batch/level). | ⚙ Fine for now; the in-app editor (S39) can expose batch if grammar ever needs sub-batches. |
+| R-105 | Alias list is a fixed table. | ⚙ Extend `_HEADER_ALIASES` as new sheet shapes appear. |
+| R-106 | L16 grammar has 7 points (not 12); levels beyond 5 previously had no grammar. | ⚙ Real content gap — flagged as a warning, not fabricated. Fill via the sheet. |
