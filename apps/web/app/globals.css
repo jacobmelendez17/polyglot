@@ -184,3 +184,24 @@ html[data-font-size="xl"] { font-size: 20px; }
   to   { left: 100%;   opacity: 0; }
 }
 /* === end polyglot handwritten hero greeting (slice 35) === */
+
+/* === polyglot handwritten hero greeting — stroke draw (slice 36) =============================
+ * Draw / un-draw keyframes for HandwrittenGreeting. Each hero <path> sets --len (its own
+ * length) and a dasharray of that length; drawing animates the dashoffset from --len → 0
+ * (pen laying ink down), erasing animates 0 → --len (ink lifting away). Per-path delay and
+ * duration are set inline for constant pen speed. The prefers-reduced-motion rule elsewhere
+ * in this file disables these; the component then renders the word fully drawn and static, so
+ * it is never hidden behind motion.
+ *
+ * NB: the slice-35 keyframes (hw-write-in / hw-erase / hw-nib / hw-eraser) are now unused and
+ * can be deleted; left in place they are harmless.
+ */
+@keyframes hw-draw {
+  from { stroke-dashoffset: var(--len); }
+  to   { stroke-dashoffset: 0; }
+}
+@keyframes hw-undraw {
+  from { stroke-dashoffset: 0; }
+  to   { stroke-dashoffset: var(--len); }
+}
+/* === end polyglot handwritten hero greeting — stroke draw (slice 36) === */

@@ -1,14 +1,30 @@
-/** HandwrittenGreeting — accessibility + reduced-motion rendering. */
+/** HandwrittenGreeting — a11y + rendering (animated and reduced-motion). */
 import { render, screen, act } from "@testing-library/react";
 import { HandwrittenGreeting } from "../handwritten-greeting";
-import type { Greeting } from "@/lib/landing-content";
+import type { HeroWord } from "@/lib/hero-strokes";
 
-const GREETINGS: Greeting[] = [
-  { text: "hola", lang: "español" },
-  { text: "kumusta", lang: "tagalog" },
+const WORDS: HeroWord[] = [
+  {
+    text: "hi",
+    lang: "english",
+    vb: [0, 0, 20, 10],
+    aspect: 2,
+    totalLen: 30,
+    strokes: [
+      { d: "M0,0 L0,10", t: [0, 0], len: 10 },
+      { d: "M5,0 L5,10", t: [0, 0], len: 20 },
+    ],
+  },
+  {
+    text: "ok",
+    lang: "english",
+    vb: [0, 0, 20, 10],
+    aspect: 2,
+    totalLen: 20,
+    strokes: [{ d: "M0,0 L10,10", t: [0, 0], len: 20 }],
+  },
 ];
 
-/** Install a matchMedia mock that reports the given reduced-motion state. */
 function mockReducedMotion(reduced: boolean) {
   Object.defineProperty(window, "matchMedia", {
     writable: true,
@@ -38,31 +54,36 @@ describe("HandwrittenGreeting (animated)", () => {
     jest.useRealTimers();
   });
 
-  it("always exposes a stable screen-reader word regardless of the animation", () => {
-    render(<HandwrittenGreeting greetings={GREETINGS} label="hello" />);
-    // The visible glyphs are aria-hidden; "hello" is the accessible name.
+  it("exposes a stable screen-reader word regardless of the animation", () => {
+    render(<HandwrittenGreeting words={WORDS} label="hello" />);
     expect(screen.getByText("hello")).toHaveClass("sr-only");
   });
 
-  it("renders the first greeting split into per-glyph spans", () => {
-    const { container } = render(<HandwrittenGreeting greetings={GREETINGS} />);
-    // 'hola' → four glyph spans plus the nib; assert each letter is present.
-    for (const ch of ["h", "o", "l", "a"]) {
-      expect(container.textContent).toContain(ch);
-    }
+  it("draws the first word as SVG stroke paths (one per stroke)", () => {
+    const { container } = render(<HandwrittenGreeting words={WORDS} label="hello" />);
+    const paths = container.querySelectorAll("path");
+    expect(paths).toHaveLength(WORDS[0].strokes.length);
+    // While writing, each stroke starts hidden (dashoffset == its length).
+    expect(paths[0].getAttribute("style")).toContain("stroke-dashoffset");
+  });
+
+  it("does not render any emoji/pen glyph text", () => {
+    const { container } = render(<HandwrittenGreeting words={WORDS} label="hello" />);
+    // Only the sr-only label should contribute readable text.
+    expect(container.textContent).toBe("hello");
   });
 });
 
 describe("HandwrittenGreeting (reduced motion)", () => {
   beforeEach(() => mockReducedMotion(true));
 
-  it("shows the plain word, fully visible, with no per-glyph animation", () => {
-    const { container } = render(<HandwrittenGreeting greetings={GREETINGS} label="hello" />);
-    // Plain word text is rendered directly…
-    expect(container.textContent).toContain("hola");
-    // …and the accessible word is still present.
-    expect(screen.getByText("hello")).toHaveClass("sr-only");
-    // No inline `animation:` styles were emitted on the reduced path.
+  it("shows the word fully drawn with no animation", () => {
+    const { container } = render(<HandwrittenGreeting words={WORDS} label="hello" />);
+    const paths = container.querySelectorAll("path");
+    expect(paths.length).toBe(WORDS[0].strokes.length);
+    // No inline animation on the reduced path.
     expect(container.querySelector('[style*="animation"]')).toBeNull();
+    // Accessible word still present.
+    expect(screen.getByText("hello")).toHaveClass("sr-only");
   });
 });

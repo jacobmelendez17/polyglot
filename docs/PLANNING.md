@@ -2509,3 +2509,63 @@ a11y label + reduced-motion render).
 | R-98 | The "ink-in + wipe" reveal reads as *writing*, but isn't literal cursive stroke-drawing. True per-letter cursive would need single-stroke SVG paths per glyph (Latin) or a multi-script stroke font — heavy and Latin-biased. | ⚙ Ship the reveal now; if a specific hero word (e.g. "hola") should truly draw stroke-by-stroke, add an optional SVG-path variant for that one word behind the same component seam. |
 | R-99 | Timing (`DEFAULT_TIMING`) is a filler feel: 55ms/glyph stagger, 260ms ink, 1.1s hold, 650ms erase. | ⚙ Tune in `lib/handwrite.ts`; nothing else depends on the values. |
 | R-100 | The travelling pen nib is shown for LTR only; RTL greetings ink in without the nib. | ⚙ Add an rtl nib track (mirror `hw-nib`) if the nib should appear for Arabic too. |
+
+---
+## Slice 36 — Hero greeting is now *drawn* like handwriting (§20 landing) (2026-08-09)
+
+Follow-up to slice 35. That version *revealed* each greeting (glyphs faded/clipped in behind a
+pen-nib emoji); the ask was for it to actually look **written**. This replaces the reveal with a
+true stroke draw-on: each "hello" is real single-stroke cursive, and its strokes are inked in with
+`stroke-dashoffset`, one after another at a constant pen speed, so a line travels across the word
+and writes it. After a hold it erases (strokes un-draw left→right, like a wipe) and the next
+language is written. **No emojis anywhere** (the nib/eraser glyphs are gone).
+
+**How the handwriting is real, with no runtime dependency.** `lib/hero-strokes.ts` is a GENERATED,
+clearly-marked data file: single-stroke cursive path data (viewBox + per-letter path `d`, translate,
+and stroke length) for a curated set of greetings, baked **offline** from the public-domain Hershey
+"cursive" single-line font via the `hersheytext` toolkit. Only the static path data ships — no font,
+no `opentype.js`, no npm handwriting library at runtime, keeping the slice-29 "CSS-only animation,
+no new deps" rule. `scripts/gen-hero-strokes.cjs` regenerates it (manual, off-CI:
+`npm i --no-save hersheytext svg-path-properties && node scripts/gen-hero-strokes.cjs > lib/hero-strokes.ts`).
+
+Why curated words: single-stroke cursive fonts are Latin-script, so the drawn set is Latin greetings
+(español + tagalog first, then français/italiano/deutsch/türkçe/kiswahili/hawaiian/português). The
+non-Latin hellos (日本語, 한국어, 中文, العربية …) have no single-stroke glyphs and stay in the
+marquee / floating greetings, where they already live — so nothing multilingual is lost.
+
+**Pieces.**
+- `lib/handwrite.ts` — rewritten to the constant-speed model: `writeMs` / `eraseMs` / `cycleMs`
+  and `strokeSchedule(lens, totalMs)` (each stroke gets a time slice ∝ its length, back-to-back, so
+  the pen speed is constant across uneven letters). Pure → unit-tested.
+- `components/handwritten-greeting.tsx` — rewritten to render an inline SVG sized from the headline
+  font-size (`em`), drawing strokes via `hw-draw` and un-drawing via `hw-undraw`, with per-stroke
+  delay/duration set inline. Colour is `currentColor` (inherits the accent).
+- `app/globals.css` — appended `hw-draw` / `hw-undraw` keyframes (idempotent, slice-36 marker). The
+  slice-35 keyframes are now unused but harmless.
+- `app/page.tsx` — the hero call drops its now-unneeded `greetings` prop
+  (`<HandwrittenGreeting label="hello" />`); `GREETINGS` stays imported for the marquee/floating use.
+
+**Accessibility unchanged.** Drawn SVG is `aria-hidden`; a stable sr-only "hello" keeps the headline
+reading "say hello to fluency". Under `prefers-reduced-motion` the word renders **fully drawn and
+static** (still the cursive look) and swaps on a slow timer — never hidden behind motion.
+
+**Verified.** All six files transpile through esbuild; the timing logic was executed in Node against
+every assertion (constant-speed schedule, back-to-back with no gaps, last stroke ends exactly at
+totalMs, safe on empty/zero). The stroke data was rendered to PNG at write-progress **and**
+erase-progress points to confirm it visibly writes left→right and erases left→right (kumusta:
+`kum`→`kumusta`, then `usta`→`a`). The generator's letter-coverage check passes for every curated
+word (no missing glyphs). Both patchers (page prop-drop) were tested for idempotency and
+abort-without-writing on divergence.
+
+**Tests: frontend +~20** (`handwrite.test.ts` timing, `hero-strokes.test.ts` data integrity,
+`handwritten-greeting.test.tsx` a11y + reduced-motion + no-emoji). **No migration, no backend
+change.**
+
+### Open questions
+
+| # | Item | Filler decision (changeable) |
+|---|---|---|
+| R-98 (resolved) | "make it look written." | ✔ Real single-stroke draw-on shipped. |
+| R-101 | Drawn set is Latin-script only (single-stroke font limitation). | ⚙ If a specific non-Latin hello must also *draw*, hand-author its single-stroke SVG and add it to `hero-strokes.ts`; the component already renders whatever's in the array. |
+| R-99 | Pen feel is filler: `PEN_SPEED=0.19` (len/ms), `HOLD_MS=1200`, `ERASE_RATIO=0.55`. | ⚙ Tune in `lib/handwrite.ts`. |
+| R-102 | Word width shifts "to fluency" as different-length words cycle (same as before). | ⚙ Reserve the widest word's width if the reflow reads as jumpy. |

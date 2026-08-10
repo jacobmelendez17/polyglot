@@ -107,7 +107,7 @@ function Hero() {
       </p>
       <h1 className="relative mx-auto mt-4 max-w-3xl text-4xl leading-tight tracking-cozy sm:text-6xl">
         say{" "}
-        <HandwrittenGreeting label="hello" />{" "}
+        <HandwrittenGreeting greetings={GREETINGS} label="hello" />{" "}
         to fluency
       </h1>
       <p className="relative mx-auto mt-5 max-w-xl text-lg text-terraza-soft">

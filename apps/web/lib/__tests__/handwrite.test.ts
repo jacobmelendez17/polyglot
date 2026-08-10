@@ -1,114 +1,78 @@
-/** Handwriting engine — pure timing, grapheme splitting, and direction. */
+/** Handwriting stroke timing — pure, deterministic scheduling. */
 import {
-  DEFAULT_TIMING,
-  charDelays,
+  ERASE_RATIO,
+  HOLD_MS,
+  PEN_SPEED,
   cycleMs,
-  dirFor,
-  graphemes,
+  eraseMs,
+  strokeSchedule,
   writeMs,
-  type HandwriteTiming,
 } from "../handwrite";
 
-const T: HandwriteTiming = { staggerMs: 50, charMs: 200, holdMs: 1000, eraseMs: 500 };
-
-describe("graphemes", () => {
-  it("splits plain ASCII one letter per glyph", () => {
-    expect(graphemes("hola")).toEqual(["h", "o", "l", "a"]);
+describe("writeMs", () => {
+  it("is length / pen speed", () => {
+    expect(writeMs(190, 0.19)).toBeCloseTo(1000, 5);
   });
-
-  it("keeps multi-byte CJK glyphs whole (no surrogate splitting)", () => {
-    expect(graphemes("你好")).toEqual(["你", "好"]);
-    expect(graphemes("こんにちは")).toHaveLength(5);
+  it("is 0 for an empty word", () => {
+    expect(writeMs(0)).toBe(0);
   });
-
-  it("does not detach combining marks in complex scripts", () => {
-    // नमस्ते is fewer visual clusters than its code-point count.
-    const g = graphemes("नमस्ते");
-    expect(g.length).toBeLessThan(Array.from("नमस्ते").length + 1);
-    expect(g.join("")).toBe("नमस्ते");
-  });
-
-  it("round-trips: joining the glyphs rebuilds the input", () => {
-    for (const w of ["bonjour", "مرحبا", "สวัสดี", "안녕하세요", "olá"]) {
-      expect(graphemes(w).join("")).toBe(w);
-    }
-  });
-
-  it("handles the empty string", () => {
-    expect(graphemes("")).toEqual([]);
+  it("grows with length at constant speed", () => {
+    expect(writeMs(100)).toBeLessThan(writeMs(300));
+    // twice the ink → twice the time
+    expect(writeMs(200)).toBeCloseTo(writeMs(100) * 2, 5);
   });
 });
 
-describe("writeMs", () => {
-  it("is charMs for a single glyph (no stagger yet)", () => {
-    expect(writeMs(1, T)).toBe(200);
-  });
-
-  it("adds one stagger per additional glyph", () => {
-    // 4 glyphs: 3 gaps * 50 + 200 = 350
-    expect(writeMs(4, T)).toBe(350);
-  });
-
-  it("never returns 0 for an empty word", () => {
-    expect(writeMs(0, T)).toBe(T.charMs);
-  });
-
-  it("grows monotonically with length", () => {
-    expect(writeMs(2, T)).toBeLessThan(writeMs(3, T));
-    expect(writeMs(3, T)).toBeLessThan(writeMs(10, T));
+describe("eraseMs", () => {
+  it("is a fraction of write time", () => {
+    expect(eraseMs(200)).toBeCloseTo(writeMs(200) * ERASE_RATIO, 5);
+    expect(eraseMs(200)).toBeLessThan(writeMs(200));
   });
 });
 
 describe("cycleMs", () => {
   it("is write + hold + erase", () => {
-    // 4 glyphs → 350 + 1000 + 500 = 1850
-    expect(cycleMs(4, T)).toBe(1850);
+    const total = 200;
+    expect(cycleMs(total)).toBeCloseTo(writeMs(total) + HOLD_MS + eraseMs(total), 5);
   });
-
-  it("uses the shipped defaults when none are passed", () => {
-    const n = 3;
-    const expected =
-      (n - 1) * DEFAULT_TIMING.staggerMs +
-      DEFAULT_TIMING.charMs +
-      DEFAULT_TIMING.holdMs +
-      DEFAULT_TIMING.eraseMs;
-    expect(cycleMs(n)).toBe(expected);
+  it("uses the shipped defaults", () => {
+    expect(cycleMs(190)).toBeCloseTo(190 / PEN_SPEED + HOLD_MS + (190 / PEN_SPEED) * ERASE_RATIO, 5);
   });
 });
 
-describe("charDelays", () => {
-  it("is one stagger step per DOM index, starting at 0", () => {
-    expect(charDelays(4, T)).toEqual([0, 50, 100, 150]);
+describe("strokeSchedule", () => {
+  it("gives each stroke a slice of time proportional to its length", () => {
+    const s = strokeSchedule([100, 100], 1000);
+    expect(s).toHaveLength(2);
+    expect(s[0]).toEqual({ delay: 0, dur: 500 });
+    expect(s[1]).toEqual({ delay: 500, dur: 500 });
   });
 
-  it("returns an empty array for an empty word", () => {
-    expect(charDelays(0, T)).toEqual([]);
+  it("keeps a constant pen speed with uneven letters", () => {
+    // 1 : 3 length ratio → 1 : 3 time ratio, back to back.
+    const s = strokeSchedule([50, 150], 800);
+    expect(s[0].dur).toBeCloseTo(200, 5);
+    expect(s[1].dur).toBeCloseTo(600, 5);
+    expect(s[1].delay).toBeCloseTo(200, 5); // starts exactly when #0 ends
   });
 
-  it("is strictly increasing so the pen never moves backwards", () => {
-    const d = charDelays(6, T);
-    for (let i = 1; i < d.length; i++) expect(d[i]).toBeGreaterThan(d[i - 1]);
-  });
-
-  it("the last glyph finishes exactly at writeMs", () => {
-    const d = charDelays(5, T);
-    expect(d[d.length - 1] + T.charMs).toBe(writeMs(5, T));
-  });
-});
-
-describe("dirFor", () => {
-  it("treats Latin/CJK/Cyrillic/Thai as ltr", () => {
-    for (const w of ["hola", "你好", "привет", "สวัสดี", "こんにちは"]) {
-      expect(dirFor(w)).toBe("ltr");
+  it("starts at 0 and each stroke follows the previous with no gap", () => {
+    const s = strokeSchedule([30, 40, 50], 1200);
+    expect(s[0].delay).toBe(0);
+    for (let i = 1; i < s.length; i++) {
+      expect(s[i].delay).toBeCloseTo(s[i - 1].delay + s[i - 1].dur, 2);
     }
   });
 
-  it("detects Arabic and Hebrew as rtl", () => {
-    expect(dirFor("مرحبا")).toBe("rtl");
-    expect(dirFor("שלום")).toBe("rtl");
+  it("the last stroke finishes exactly at totalMs", () => {
+    const s = strokeSchedule([30, 40, 50], 1200);
+    const last = s[s.length - 1];
+    expect(last.delay + last.dur).toBeCloseTo(1200, 2);
   });
 
-  it("defaults to ltr for the empty string", () => {
-    expect(dirFor("")).toBe("ltr");
+  it("degrades safely for empty / zero inputs", () => {
+    expect(strokeSchedule([], 1000)).toEqual([]);
+    expect(strokeSchedule([10, 20], 0)).toEqual([{ delay: 0, dur: 0 }, { delay: 0, dur: 0 }]);
+    expect(strokeSchedule([0, 0], 1000)).toEqual([{ delay: 0, dur: 0 }, { delay: 0, dur: 0 }]);
   });
 });

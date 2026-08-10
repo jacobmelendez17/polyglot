@@ -1,92 +1,64 @@
-// A tiny, dependency-free "handwriting" engine for the hero greeting (slice 35).
+// Pure, deterministic timing for the "being written" hero greeting (slice 36).
 //
-// This module is pure and deterministic — no DOM, no React — so the timing and
-// text logic is unit-testable the same way `landing-content.ts` is. The React
-// component in `components/handwritten-greeting.tsx` consumes these helpers to
-// drive the write → hold → erase → next cycle.
-//
-// Why our own tiny library instead of an npm handwriting package (e.g. Vara):
-// the hero greeting cycles through many scripts — español, tagalog, 日本語,
-// 한국어, 中文, العربية, हिन्दी, ไทย … — and the popular handwriting libraries
-// ship Latin-only stroke fonts, so the non-Latin greetings would simply not
-// render. Reading glyph outlines at runtime (opentype.js) would cover them but
-// needs a heavy multi-script font. A per-glyph "ink-in + wipe-erase" reveal, by
-// contrast, is script-agnostic, dependency-free, and respects the codebase's
-// "CSS-only animation, no new deps" convention. The seam is here if a true
-// cursive stroke engine is ever wanted per-language.
+// The greeting is drawn as real single-stroke handwriting: each stroke path is
+// revealed with stroke-dashoffset, and the strokes fire in order at a CONSTANT
+// pen speed, so the pen appears to travel across the word evenly regardless of
+// how long each letter is. This module owns that scheduling maths (no DOM, no
+// React) so it stays unit-testable; the SVG path data lives in hero-strokes.ts
+// and the component in components/handwritten-greeting.tsx consumes both.
 
-export interface HandwriteTiming {
-  /** ms between each glyph starting to "ink in" (the pen moving along). */
-  staggerMs: number;
-  /** ms each individual glyph takes to fully ink in. */
-  charMs: number;
-  /** ms the fully-written word rests before it starts to erase. */
-  holdMs: number;
-  /** ms the erase sweep takes. */
-  eraseMs: number;
+// Filler feel (§36) — tune freely; nothing else depends on the values.
+/** Pen speed in stroke-length units per millisecond. Higher = faster writing. */
+export const PEN_SPEED = 0.19;
+/** How long the finished word rests before it starts to erase (ms). */
+export const HOLD_MS = 1200;
+/** Erase happens faster than writing — this is the multiplier on write time. */
+export const ERASE_RATIO = 0.55;
+
+/** Time to write a whole word of total stroke length `totalLen` (ms). */
+export function writeMs(totalLen: number, speed: number = PEN_SPEED): number {
+  if (totalLen <= 0) return 0;
+  return totalLen / speed;
 }
 
-// Filler defaults (§36) — tune freely; nothing else depends on these values.
-export const DEFAULT_TIMING: HandwriteTiming = {
-  staggerMs: 55,
-  charMs: 260,
-  holdMs: 1100,
-  eraseMs: 650,
-};
-
-// Runtimes that expose Intl.Segmenter (Node 16+, modern browsers) get correct
-// grapheme splitting; others fall back to code-point splitting.
-type SegmenterCtor = new (
-  locales?: string | string[],
-  options?: { granularity?: "grapheme" | "word" | "sentence" },
-) => { segment(input: string): Iterable<{ segment: string }> };
-
-/**
- * Split a string into user-perceived characters (graphemes) so multi-byte
- * scripts (你好, नमस्ते, emoji, combining marks) reveal one *visual* glyph at a
- * time instead of splitting surrogate pairs or detaching combining marks.
- * Uses Intl.Segmenter when available, else Array.from (code points).
- */
-export function graphemes(text: string): string[] {
-  const Seg = (Intl as unknown as { Segmenter?: SegmenterCtor }).Segmenter;
-  if (typeof Seg === "function") {
-    try {
-      const seg = new Seg(undefined, { granularity: "grapheme" });
-      return Array.from(seg.segment(text), (s) => s.segment);
-    } catch {
-      /* fall through to code-point split */
-    }
-  }
-  return Array.from(text);
-}
-
-/** How long the writing pass takes for a word of `count` graphemes. */
-export function writeMs(count: number, t: HandwriteTiming = DEFAULT_TIMING): number {
-  if (count <= 0) return t.charMs;
-  return (count - 1) * t.staggerMs + t.charMs;
+/** Time to erase a word (a fraction of its write time). */
+export function eraseMs(totalLen: number, speed: number = PEN_SPEED): number {
+  return writeMs(totalLen, speed) * ERASE_RATIO;
 }
 
 /** Full cycle for one greeting: write → hold → erase. */
-export function cycleMs(count: number, t: HandwriteTiming = DEFAULT_TIMING): number {
-  return writeMs(count, t) + t.holdMs + t.eraseMs;
+export function cycleMs(
+  totalLen: number,
+  hold: number = HOLD_MS,
+  speed: number = PEN_SPEED,
+): number {
+  return writeMs(totalLen, speed) + hold + eraseMs(totalLen, speed);
+}
+
+export interface StrokeSchedule {
+  /** ms after the phase starts that this stroke begins animating. */
+  delay: number;
+  /** ms this stroke takes to draw (∝ its length → constant pen speed). */
+  dur: number;
 }
 
 /**
- * Per-glyph ink-in delay in ms, indexed by DOM order. Visual direction is
- * handled by the `dir` attribute + the RTL keyframe in the component, so the
- * delay is simply `domIndex * stagger` for both scripts (for an RTL word the
- * first DOM child is the visually-rightmost glyph, which should ink first).
+ * Constant-speed schedule for a sequence of stroke lengths across `totalMs`.
+ * Stroke i runs for (len_i / Σlen) * totalMs and starts when i-1 finishes, so
+ * the pen never pauses and never races. Returned in the SAME order as `lens`
+ * (writing draws start→end; erasing reuses this order start→end so the word
+ * disappears left-to-right like a wipe).
  */
-export function charDelays(count: number, t: HandwriteTiming = DEFAULT_TIMING): number[] {
-  const out: number[] = [];
-  for (let i = 0; i < count; i++) out.push(i * t.staggerMs);
+export function strokeSchedule(lens: number[], totalMs: number): StrokeSchedule[] {
+  const sum = lens.reduce((a, l) => a + l, 0);
+  if (sum <= 0 || totalMs <= 0) return lens.map(() => ({ delay: 0, dur: 0 }));
+  const out: StrokeSchedule[] = [];
+  let acc = 0;
+  for (const len of lens) {
+    const delay = (acc / sum) * totalMs;
+    const dur = (len / sum) * totalMs;
+    out.push({ delay: +delay.toFixed(2), dur: +dur.toFixed(2) });
+    acc += len;
+  }
   return out;
-}
-
-// Hebrew + Arabic (and its supplements) — enough to reveal these the natural way.
-const RTL_RE = /[\u0590-\u05FF\u0600-\u06FF\u0700-\u074F\u0750-\u077F\u08A0-\u08FF]/;
-
-/** Rough script direction for a greeting. Decorative-only; defaults to ltr. */
-export function dirFor(text: string): "ltr" | "rtl" {
-  return RTL_RE.test(text) ? "rtl" : "ltr";
 }
