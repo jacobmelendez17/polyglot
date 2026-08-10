@@ -152,3 +152,35 @@ html[data-font-size="xl"] { font-size: 20px; }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 /* === end polyglot landing animations (slice 29) === */
+
+/* === polyglot handwritten hero greeting (slice 35) ===========================================
+ * Keyframes for HandwrittenGreeting. Referenced via inline `animation:` styles in
+ * components/handwritten-greeting.tsx. The prefers-reduced-motion rule elsewhere in this
+ * file disables them; the component also renders a plain, always-visible word in that case,
+ * so the greeting is never hidden behind motion.
+ */
+@keyframes hw-write-in {
+  from { opacity: 0; clip-path: inset(0 100% 0 0); transform: translateY(0.12em) rotate(-5deg); }
+  60%  { opacity: 1; }
+  to   { opacity: 1; clip-path: inset(0 0 0 0);   transform: translateY(0) rotate(0); }
+}
+@keyframes hw-write-in-rtl {
+  from { opacity: 0; clip-path: inset(0 0 0 100%); transform: translateY(0.12em) rotate(5deg); }
+  60%  { opacity: 1; }
+  to   { opacity: 1; clip-path: inset(0 0 0 0);    transform: translateY(0) rotate(0); }
+}
+@keyframes hw-erase {
+  from { clip-path: inset(0 0 0 0);   opacity: 1; }
+  70%  { opacity: 1; }
+  to   { clip-path: inset(0 0 0 100%); opacity: 0; }
+}
+@keyframes hw-nib {
+  from { left: -0.1em; opacity: 1; transform: rotate(-8deg); }
+  to   { left: 100%;   opacity: 0; transform: rotate(-8deg); }
+}
+@keyframes hw-eraser {
+  from { left: -0.1em; opacity: 1; }
+  85%  { opacity: 1; }
+  to   { left: 100%;   opacity: 0; }
+}
+/* === end polyglot handwritten hero greeting (slice 35) === */

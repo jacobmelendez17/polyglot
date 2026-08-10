@@ -19,7 +19,6 @@ import {
   SRS_STAGES,
   TESTIMONIALS,
 } from "@/lib/landing-content";
-import { HandwrittenGreeting } from "@/components/handwritten-greeting";
 
 const PRIMARY =
   "rounded-full bg-terraza-accent px-6 py-3 tracking-cozy text-terraza-accentInk transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-terraza-ink";
@@ -97,6 +96,15 @@ function Nav() {
 /* ---- hero ---------------------------------------------------------------- */
 
 function Hero() {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) return;
+    const t = setInterval(() => setI((n) => (n + 1) % GREETINGS.length), 2200);
+    return () => clearInterval(t);
+  }, []);
+  const g = GREETINGS[i];
+
   return (
     <section className="relative mx-auto max-w-6xl px-4 pb-8 pt-16 text-center sm:pt-24">
       {/* drifting greeting words in the background */}
@@ -107,7 +115,14 @@ function Hero() {
       </p>
       <h1 className="relative mx-auto mt-4 max-w-3xl text-4xl leading-tight tracking-cozy sm:text-6xl">
         say{" "}
-        <HandwrittenGreeting greetings={GREETINGS} label="hello" />{" "}
+        <span
+          key={i}
+          lang={g.lang}
+          className="inline-block text-terraza-accent"
+          style={{ animation: "lp-pop 500ms ease-out" }}
+        >
+          {g.text}
+        </span>{" "}
         to fluency
       </h1>
       <p className="relative mx-auto mt-5 max-w-xl text-lg text-terraza-soft">

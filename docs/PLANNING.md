@@ -2455,3 +2455,57 @@ of it:
 wider suite (the same weak-password staleness elsewhere, plus an unrelated `KeyError` affecting
 `test_practice_db.py`/`test_speech_practice_db.py`/parts of `test_learn_flow_db.py`). Untouched —
 well outside this slice's scope, flagged for its own cleanup pass.
+
+---
+## Slice 35 — Handwritten hero greeting (§20 landing) (2026-08-09)
+
+The landing hero's rotating word ("say **hola** / **kumusta** / **bonjour** … to fluency") is now
+*written* rather than popped in: each greeting's glyphs ink in one at a time, left→right, behind a
+small travelling pen nib, then the word is held and **erased** by a wipe (with a little eraser
+sliding across) before the next language is written in its place. It cycles through the full
+multilingual `GREETINGS` list.
+
+**Why a small in-house engine, not a handwriting npm package.** The greetings span many scripts —
+español, tagalog, 日本語, 한국어, 中文, العربية, हिन्दी, ไทย, русский … — and the popular
+handwriting libraries (Vara et al.) ship Latin-only stroke fonts, so every non-Latin greeting would
+fail to render. A per-glyph "ink-in + wipe-erase" reveal is script-agnostic, needs no font data,
+and keeps the landing page's "CSS-only animation, no new deps" rule from slice 29. If a true cursive
+stroke engine is ever wanted per language, the seam lives in `lib/handwrite.ts`.
+
+**Structure.**
+- `lib/handwrite.ts` — pure, deterministic helpers: `graphemes()` (Intl.Segmenter with an
+  Array.from fallback, so 你好 / नमस्ते / emoji split by *visual* cluster, never mid-surrogate),
+  `writeMs` / `cycleMs` / `charDelays` (timing), and `dirFor` (Arabic/Hebrew → rtl). No DOM, no
+  React → unit-tested like `landing-content.ts`.
+- `components/handwritten-greeting.tsx` — `<HandwrittenGreeting/>` runs the write→hold→erase→next
+  cycle off those timings.
+- `app/globals.css` — appended keyframes (`hw-write-in`, `hw-write-in-rtl`, `hw-erase`, `hw-nib`,
+  `hw-eraser`), idempotent behind a slice-35 marker.
+- `app/page.tsx` — the rotating `<span>` in the `<h1>` is swapped for `<HandwrittenGreeting/>`; the
+  Hero's own rotation state/effect is removed (the component owns it now).
+
+**Accessibility.** The animated glyphs are `aria-hidden`; a stable, screen-reader-only word
+("hello") keeps the headline reading "say hello to fluency" no matter which language is on screen.
+Under `prefers-reduced-motion` there is **no** writing/erasing — the plain word is always fully
+visible and simply cross-rotates on a slow timer (content never hidden behind motion, the slice
+27–29 lesson). RTL greetings reveal right→left.
+
+**Verified.** All four new files transform cleanly through esbuild (real TS/TSX syntax check); the
+pure logic was executed in Node to confirm every assertion (grapheme round-trips across six scripts,
+नमस्ते → 3 clusters vs 6 code points, monotonic delays ending exactly at `writeMs`, cycle math,
+rtl detection). The `page.tsx` patcher was tested against a faithful fixture for correctness +
+idempotency, and against a diverged file to confirm it **aborts without writing** (exit 2) rather
+than half-applying — the silent-SKIP failure mode from slices 27–28.
+
+**No migration, no backend change.** Frontend only.
+
+**Tests: frontend +~10** (`handwrite.test.ts`: grapheme/timing/direction; `handwritten-greeting.test.tsx`:
+a11y label + reduced-motion render).
+
+### Open questions
+
+| # | Item | Filler decision (changeable) |
+|---|---|---|
+| R-98 | The "ink-in + wipe" reveal reads as *writing*, but isn't literal cursive stroke-drawing. True per-letter cursive would need single-stroke SVG paths per glyph (Latin) or a multi-script stroke font — heavy and Latin-biased. | ⚙ Ship the reveal now; if a specific hero word (e.g. "hola") should truly draw stroke-by-stroke, add an optional SVG-path variant for that one word behind the same component seam. |
+| R-99 | Timing (`DEFAULT_TIMING`) is a filler feel: 55ms/glyph stagger, 260ms ink, 1.1s hold, 650ms erase. | ⚙ Tune in `lib/handwrite.ts`; nothing else depends on the values. |
+| R-100 | The travelling pen nib is shown for LTR only; RTL greetings ink in without the nib. | ⚙ Add an rtl nib track (mirror `hw-nib`) if the nib should appear for Arabic too. |
