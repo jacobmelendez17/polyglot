@@ -46,7 +46,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
     try {
       if (isSignup) {
         await signup(email, name.trim(), password);
-        router.push("/choose-language");   // choose language before onboarding
+        router.push("/welcome");   // onboarding slides, then language + curriculum pacing
       } else {
         const me = await login(email, password);
         // New/reset accounts see onboarding on sign-in; everyone else goes home.

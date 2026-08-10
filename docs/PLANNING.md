@@ -2401,3 +2401,57 @@ This closes out the dashboard/lesson/practice batch started at Slice 31: dashboa
 Customize Lessons (31), Practice playground + Admin sandbox (32), Lesson-session rework (33).
 Remaining open items are tracked above (R-98–R-100) and in "Known pre-existing breakage" — none of
 them block this batch, they're pre-existing or deliberately deferred.
+
+---
+## Slice 34 — Replay-onboarding dev tool + curriculum step after onboarding (by request) (2026-08-09)
+
+**Replay onboarding** (`/dev`). A narrower sibling to "reset my progress": clears only
+`profile.onboarding_completed_at` (`services/dev_sandbox.replay_onboarding`, new
+`POST /api/v1/dev/replay-onboarding`, `dev_panel`-gated like every other sandbox route). XP, SRS
+progress, streaks, active language, curriculum_mode — all untouched, unlike the full reset. The
+button calls it and immediately routes to `/welcome`. Backend tests: forbidden for a normal user;
+owner replay clears the flag while `xp_total` (set to a non-zero value first) is confirmed
+unchanged after.
+
+**Curriculum step after onboarding.** The signup → onboarding order was: choose-language, then the
+5 slides, then straight to the dashboard. By request, reordered so a learner sees *why* the method
+works before *what* to set up: **slides → choose-language → choose-curriculum (new) → dashboard**.
+`choose-curriculum` is a new page presenting the three existing `curriculum_mode` values
+(`default_dispersed`/`grammar_batch`/`fully_dispersed`, already used by the settings page — no
+backend or schema changes) as onboarding-style cards with friendly labels — **themed / batched /
+mixed** — and the current value pre-selected. Meaningful timing, not just placement: curriculum
+mode locks in per-level the first time a lesson from that level is planned (PLANNING §5), so
+onboarding is the one guaranteed moment it's still free to pick for every new learner, rather than
+a setting most people never find. Saves via the same `PATCH /api/v1/me/settings` the settings page
+already uses.
+
+Returning-user login is unaffected — that branch already routed to `/welcome` when
+`onboarding_completed` is false and `/dashboard` otherwise; the new steps just chain naturally off
+of `/welcome`'s completion, in either the fresh-signup or the dev-replay case.
+
+**No migration, no schema change.**
+
+**Tests: backend +2** (replay-onboarding forbidden/owner-clears-without-touching-xp). No new
+frontend unit tests — this is routing + a static options list, not new pure logic; verified live
+in a headless browser instead: a full fresh signup driven through the real UI (fill form → 5
+slides → pick a language → pick a pacing mode → lands on `/dashboard`, zero console errors), and
+the dev button's full round trip (`onboarding_completed` true → click → redirected to `/welcome` →
+confirmed false via `/me`, then restored).
+
+**Found and fixed in passing, while getting a clean test baseline for the above:** two pre-existing
+bugs in `tests/test_feedback_onboarding_db.py`, unrelated to this slice but blocking verification
+of it:
+- The file's weak `"supersecret1"` signup password now fails the strong-password policy added in
+  an earlier slice — this is the exact fixture staleness R-95 already flagged. Fixed in this file
+  (`Supersecret1!`); the same staleness likely exists in other test files R-95 didn't enumerate —
+  out of scope here.
+- Three tests (`test_admin_lists_and_filters_and_responds`, `test_owner_reset_clears_onboarding`,
+  and now my own new replay test copied from the same pattern) called `_signup` **twice** for the
+  same email to get a token reflecting a role promoted mid-test — signup 400s on a duplicate email,
+  so this always failed once it got past the password issue. Added a `_login` helper and switched
+  the second call to it. All 12 tests in the file pass now.
+
+**Known, not fixed:** a full `pytest -q` run still shows ~100 failures / 134 errors across the
+wider suite (the same weak-password staleness elsewhere, plus an unrelated `KeyError` affecting
+`test_practice_db.py`/`test_speech_practice_db.py`/parts of `test_learn_flow_db.py`). Untouched —
+well outside this slice's scope, flagged for its own cleanup pass.

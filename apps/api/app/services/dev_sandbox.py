@@ -29,7 +29,7 @@ from app.db.base import ContentStatus
 from app.domain import dev_mode as dev_rules
 from app.models.curriculum import GrammarPoint, Language, Module, VocabularyItem
 from app.models.enums import ItemType
-from app.models.identity import UserSettings
+from app.models.identity import Profile, UserSettings
 from app.models.progress import UserItemProgress
 
 
@@ -167,6 +167,22 @@ def make_reviews_due(
     )
     db.flush()
     return {"made_due": int(result.rowcount or 0)}
+
+
+def replay_onboarding(db: Session, *, user_id: uuid.UUID) -> dict:
+    """Clear the onboarding stamp only — narrower than `reset_progress`.
+
+    Unlike a full progress reset, this touches nothing else: SRS progress, XP,
+    streaks, active language, and curriculum_mode all stay exactly as they are.
+    It exists so you can re-see the slides (and, now that language/curriculum
+    picking sit right after them, those two screens as well) without also
+    wiping a sandbox account you've already set up for testing something else.
+    """
+    profile = db.get(Profile, user_id)
+    if profile is not None:
+        profile.onboarding_completed_at = None
+    db.flush()
+    return {"replayed": profile is not None}
 
 
 def set_stage(

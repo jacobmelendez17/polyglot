@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Header } from "@/components/header";
 import { Protected } from "@/components/protected";
@@ -24,6 +25,7 @@ export default function DevPage() {
 }
 
 function DevPanel() {
+  const router = useRouter();
   const [state, setState] = useState<DevState | null>(null);
   const [forbidden, setForbidden] = useState(false);
   const [log, setLog] = useState<string[]>([]);
@@ -141,6 +143,17 @@ function DevPanel() {
           </button>
           <button
             disabled={busy}
+            onClick={() => run("replay onboarding", async () => {
+              await dev.replayOnboarding();
+              router.push("/welcome");
+              return "onboarding stamp cleared — heading to the slides";
+            })}
+            className="rounded-full bg-terraza-pill px-5 py-2 text-sm tracking-cozy disabled:opacity-50"
+          >
+            replay onboarding
+          </button>
+          <button
+            disabled={busy}
             onClick={() => run("reset progress", async () => {
               await dev.resetProgress();
               return "progress reset — sign out and back in to see onboarding";
@@ -153,6 +166,8 @@ function DevPanel() {
         <p className="mt-3 text-sm text-terraza-soft">
           unlock everything, flip on fast time, then start a review — you&apos;ll
           watch an item climb the srs ladder in seconds instead of weeks.
+          &quot;replay onboarding&quot; only clears the intro stamp — xp, srs
+          progress, and everything else stay put, unlike a full reset.
         </p>
       </Card>
 

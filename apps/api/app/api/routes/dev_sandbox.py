@@ -99,3 +99,12 @@ def reset_progress(
     detail = dev_reset.reset_progress(db, user_id=user.id)
     db.commit()
     return DevActionOut(detail=detail)
+
+
+@router.post("/replay-onboarding", response_model=DevActionOut)
+def replay_onboarding(
+    db: Session = Depends(get_db), user: User = Depends(get_current_user),
+):
+    detail = dev_svc.replay_onboarding(db, user_id=user.id)
+    db.commit()
+    return DevActionOut(detail=detail)

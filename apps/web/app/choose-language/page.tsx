@@ -1,9 +1,10 @@
 "use client";
 
-// Choose-language step (spec §1, §32). Shown right after signup, before the
-// onboarding slides, so the very first thing a learner does is pick what they're
-// here to learn. It's also reachable later, but the header switcher is the usual
-// way to change languages after this. Loading / empty / error states throughout.
+// Choose-language step (spec §1, §32; reordered by request). Shown right after
+// the onboarding slides, so a learner sees why the method works before picking
+// what to learn with it. Continues to choose-curriculum next. It's also
+// reachable later, but the header switcher is the usual way to change languages
+// after this. Loading / empty / error states throughout.
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -35,7 +36,7 @@ function Chooser() {
     setBusy(code);
     try {
       await languages.setActive(code);
-      router.push("/welcome"); // continue to the onboarding slides
+      router.push("/choose-curriculum"); // continue to lesson-pacing choice
     } catch {
       setError(true);
       setBusy(null);

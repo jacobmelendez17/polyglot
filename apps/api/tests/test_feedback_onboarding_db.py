@@ -27,7 +27,7 @@ def world(client, db):
 
 def _signup(client, email="user@example.com") -> dict:
     r = client.post("/api/v1/auth/signup", json={
-        "email": email, "name": "User", "password": "supersecret1",
+        "email": email, "name": "User", "password": "Supersecret1!",
     })
     assert r.status_code == 201, r.text
     return {"Authorization": f"Bearer {r.json()['access_token']}"}
@@ -37,6 +37,14 @@ def _promote(db, email: str, role: UserRole) -> None:
     user = db.execute(select(User).where(User.email == email)).scalar_one()
     user.role = role
     db.commit()
+
+
+def _login(client, email: str, password: str = "Supersecret1!") -> dict:
+    # Used after `_promote`, since the role claim is set at token-issue time —
+    # signing up again for an email that already exists 400s.
+    r = client.post("/api/v1/auth/login", json={"email": email, "password": password})
+    assert r.status_code == 200, r.text
+    return {"Authorization": f"Bearer {r.json()['access_token']}"}
 
 
 # --- feedback submit ------------------------------------------------------
@@ -87,7 +95,7 @@ def test_admin_lists_and_filters_and_responds(client, db, world):
 
     _signup(client, "mod@example.com")
     _promote(db, "mod@example.com", UserRole.moderator)
-    mod = _signup(client, "mod@example.com")
+    mod = _login(client, "mod@example.com")
 
     inbox = client.get("/api/v1/admin/feedback", headers=mod)
     assert inbox.status_code == 200
@@ -141,7 +149,7 @@ def test_reset_is_forbidden_to_normal_users(client, world):
 def test_owner_reset_clears_onboarding(client, db, world):
     _signup(client, "owner2@example.com")
     _promote(db, "owner2@example.com", UserRole.owner)
-    owner = _signup(client, "owner2@example.com")
+    owner = _login(client, "owner2@example.com")
 
     # complete onboarding first
     client.post("/api/v1/me/onboarding/complete", headers=owner)
@@ -152,3 +160,34 @@ def test_owner_reset_clears_onboarding(client, db, world):
     assert r.status_code == 200
     assert r.json()["detail"]["onboarding_will_show_on_next_sign_in"] is True
     assert client.get("/api/v1/auth/me", headers=owner).json()["onboarding_completed"] is False
+
+
+# --- dev replay-onboarding -------------------------------------------------
+# Narrower than a full reset: clears the onboarding stamp only.
+
+def test_replay_onboarding_is_forbidden_to_normal_users(client, world):
+    headers = _signup(client)
+    assert client.post("/api/v1/dev/replay-onboarding", headers=headers).status_code == 403
+
+
+def test_owner_replay_clears_onboarding_without_touching_progress(client, db, world):
+    _signup(client, "owner3@example.com")
+    _promote(db, "owner3@example.com", UserRole.owner)
+    owner = _login(client, "owner3@example.com")
+
+    client.post("/api/v1/me/onboarding/complete", headers=owner)
+    assert client.get("/api/v1/auth/me", headers=owner).json()["onboarding_completed"] is True
+
+    me_id = client.get("/api/v1/auth/me", headers=owner).json()["id"]
+    profile = db.get(Profile, me_id)
+    profile.xp_total = 250
+    db.commit()
+
+    r = client.post("/api/v1/dev/replay-onboarding", headers=owner)
+    assert r.status_code == 200
+    assert r.json()["detail"]["replayed"] is True
+    assert client.get("/api/v1/auth/me", headers=owner).json()["onboarding_completed"] is False
+
+    # unlike reset-progress, xp (and everything else) is left alone
+    db.refresh(profile)
+    assert profile.xp_total == 250

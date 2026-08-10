@@ -39,6 +39,15 @@ export const dev = {
       { method: "POST" },
     ),
 
+  // Narrower than resetProgress: clears only the onboarding stamp, so you can
+  // re-see the slides (and now choose-language/choose-curriculum after them)
+  // without wiping XP, SRS progress, or anything else.
+  replayOnboarding: () =>
+    request<{ ok: boolean; detail: { replayed: boolean } }>(
+      "/api/v1/dev/replay-onboarding",
+      { method: "POST" },
+    ),
+
   setStage: (itemType: "vocabulary" | "grammar", itemId: string, stage: number) =>
     request<{ ok: boolean; detail: Record<string, unknown> }>(
       "/api/v1/dev/set-stage",

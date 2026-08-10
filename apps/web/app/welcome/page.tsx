@@ -9,6 +9,9 @@ import { Button } from "@/components/ui";
 // Onboarding slides (PLANNING §Phase 4, pulled forward). Five slides introduce
 // the method. The two "gag" slides are gentle interactive jokes with accessible
 // alternatives (a plain Continue button always advances).
+//
+// Next: language, then curriculum pacing — both moved to live AFTER the slides,
+// so a brand-new learner sees "why" before "which."
 
 const SLIDES = [
   {
@@ -63,7 +66,7 @@ function Onboarding() {
     // source of truth now (slice 14), with localStorage as a harmless fallback.
     try { window.localStorage.setItem("polyglot.onboarded", "1"); } catch { /* ignore */ }
     onboarding.complete().catch(() => { /* best effort — don't block leaving */ });
-    router.push("/dashboard");
+    router.push("/choose-language");
   }
 
   return (
