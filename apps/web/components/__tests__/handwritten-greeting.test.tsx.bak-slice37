@@ -7,9 +7,8 @@ const WORDS: HeroWord[] = [
   {
     text: "hi",
     lang: "english",
-    vb: [0, 0, 20, 22],
-    descend: 0,
-    aspect: 20 / 22,
+    vb: [0, 0, 20, 10],
+    aspect: 2,
     totalLen: 30,
     strokes: [
       { d: "M0,0 L0,10", t: [0, 0], len: 10 },
@@ -19,9 +18,8 @@ const WORDS: HeroWord[] = [
   {
     text: "ok",
     lang: "english",
-    vb: [0, 6, 20, 16],
-    descend: 0,
-    aspect: 20 / 16,
+    vb: [0, 0, 20, 10],
+    aspect: 2,
     totalLen: 20,
     strokes: [{ d: "M0,0 L10,10", t: [0, 0], len: 20 }],
   },
@@ -65,25 +63,13 @@ describe("HandwrittenGreeting (animated)", () => {
     const { container } = render(<HandwrittenGreeting words={WORDS} label="hello" />);
     const paths = container.querySelectorAll("path");
     expect(paths).toHaveLength(WORDS[0].strokes.length);
+    // While writing, each stroke starts hidden (dashoffset == its length).
     expect(paths[0].getAttribute("style")).toContain("stroke-dashoffset");
   });
 
-  it("uses a scaling marker-weight stroke (not a fixed hairline)", () => {
+  it("does not render any emoji/pen glyph text", () => {
     const { container } = render(<HandwrittenGreeting words={WORDS} label="hello" />);
-    const path = container.querySelector("path")!;
-    // stroke-width is in user units and > 1; there is no non-scaling-stroke.
-    expect(Number(path.getAttribute("stroke-width"))).toBeGreaterThan(1);
-    expect(path.getAttribute("vector-effect")).toBeNull();
-  });
-
-  it("sits the SVG on the text baseline", () => {
-    const { container } = render(<HandwrittenGreeting words={WORDS} label="hello" />);
-    const svg = container.querySelector("svg")!;
-    expect(svg.getAttribute("style")).toContain("vertical-align: baseline");
-  });
-
-  it("renders no emoji/pen glyph text", () => {
-    const { container } = render(<HandwrittenGreeting words={WORDS} label="hello" />);
+    // Only the sr-only label should contribute readable text.
     expect(container.textContent).toBe("hello");
   });
 });
@@ -95,7 +81,9 @@ describe("HandwrittenGreeting (reduced motion)", () => {
     const { container } = render(<HandwrittenGreeting words={WORDS} label="hello" />);
     const paths = container.querySelectorAll("path");
     expect(paths.length).toBe(WORDS[0].strokes.length);
+    // No inline animation on the reduced path.
     expect(container.querySelector('[style*="animation"]')).toBeNull();
+    // Accessible word still present.
     expect(screen.getByText("hello")).toHaveClass("sr-only");
   });
 });

@@ -9,23 +9,16 @@ import {
   writeMs,
 } from "../handwrite";
 
-describe("tuned defaults (slice 37)", () => {
-  it("writes slower and holds longer than before", () => {
-    expect(PEN_SPEED).toBeLessThan(0.19); // slower than slice 36
-    expect(HOLD_MS).toBeGreaterThanOrEqual(1500);
-    expect(ERASE_RATIO).toBeGreaterThan(0);
-    expect(ERASE_RATIO).toBeLessThan(1);
-  });
-});
-
 describe("writeMs", () => {
   it("is length / pen speed", () => {
-    expect(writeMs(140, 0.14)).toBeCloseTo(1000, 5);
+    expect(writeMs(190, 0.19)).toBeCloseTo(1000, 5);
   });
   it("is 0 for an empty word", () => {
     expect(writeMs(0)).toBe(0);
   });
-  it("twice the ink → twice the time (constant speed)", () => {
+  it("grows with length at constant speed", () => {
+    expect(writeMs(100)).toBeLessThan(writeMs(300));
+    // twice the ink → twice the time
     expect(writeMs(200)).toBeCloseTo(writeMs(100) * 2, 5);
   });
 });
@@ -42,19 +35,25 @@ describe("cycleMs", () => {
     const total = 200;
     expect(cycleMs(total)).toBeCloseTo(writeMs(total) + HOLD_MS + eraseMs(total), 5);
   });
+  it("uses the shipped defaults", () => {
+    expect(cycleMs(190)).toBeCloseTo(190 / PEN_SPEED + HOLD_MS + (190 / PEN_SPEED) * ERASE_RATIO, 5);
+  });
 });
 
 describe("strokeSchedule", () => {
   it("gives each stroke a slice of time proportional to its length", () => {
     const s = strokeSchedule([100, 100], 1000);
-    expect(s).toEqual([{ delay: 0, dur: 500 }, { delay: 500, dur: 500 }]);
+    expect(s).toHaveLength(2);
+    expect(s[0]).toEqual({ delay: 0, dur: 500 });
+    expect(s[1]).toEqual({ delay: 500, dur: 500 });
   });
 
   it("keeps a constant pen speed with uneven letters", () => {
+    // 1 : 3 length ratio → 1 : 3 time ratio, back to back.
     const s = strokeSchedule([50, 150], 800);
     expect(s[0].dur).toBeCloseTo(200, 5);
     expect(s[1].dur).toBeCloseTo(600, 5);
-    expect(s[1].delay).toBeCloseTo(200, 5);
+    expect(s[1].delay).toBeCloseTo(200, 5); // starts exactly when #0 ends
   });
 
   it("starts at 0 and each stroke follows the previous with no gap", () => {

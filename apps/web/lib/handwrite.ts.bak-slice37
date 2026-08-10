@@ -1,4 +1,4 @@
-// Pure, deterministic timing for the "being written" hero greeting.
+// Pure, deterministic timing for the "being written" hero greeting (slice 36).
 //
 // The greeting is drawn as real single-stroke handwriting: each stroke path is
 // revealed with stroke-dashoffset, and the strokes fire in order at a CONSTANT
@@ -8,13 +8,12 @@
 // and the component in components/handwritten-greeting.tsx consumes both.
 
 // Filler feel (§36) — tune freely; nothing else depends on the values.
-// Slice 37: slower + a longer hold so the writing is easy to read.
-/** Pen speed in stroke-length units per millisecond. Lower = slower writing. */
-export const PEN_SPEED = 0.14;
+/** Pen speed in stroke-length units per millisecond. Higher = faster writing. */
+export const PEN_SPEED = 0.19;
 /** How long the finished word rests before it starts to erase (ms). */
-export const HOLD_MS = 1600;
+export const HOLD_MS = 1200;
 /** Erase happens faster than writing — this is the multiplier on write time. */
-export const ERASE_RATIO = 0.6;
+export const ERASE_RATIO = 0.55;
 
 /** Time to write a whole word of total stroke length `totalLen` (ms). */
 export function writeMs(totalLen: number, speed: number = PEN_SPEED): number {

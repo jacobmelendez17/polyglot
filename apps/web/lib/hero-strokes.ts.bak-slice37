@@ -1,54 +1,38 @@
-// GENERATED FILE — do not edit by hand (slice 37).
+// GENERATED FILE — do not edit by hand (slice 36).
 //
 // Single-stroke cursive path data for the hero greeting, so each "hello" can be
 // *drawn* stroke-by-stroke (stroke-dashoffset) like real handwriting. Generated
-// offline from the public-domain Hershey "cursive" single-line font via the
-// 'hersheytext' toolkit — there is NO runtime font dependency; only this static
-// path data ships. Regenerate with scripts/gen-hero-strokes.cjs.
-//
-// Each word's viewBox BOTTOM is the shared baseline (BASE_Y), so the inline SVG
-// aligns to the surrounding text baseline; `descend` is how far the tallest
-// descender (e.g. the j in "bonjour") falls below it and is drawn via overflow.
-// Sizes are constant across words: rendered em = <unit> * EM_PER_UNIT, so words
-// with ascenders/descenders are correctly taller — just like real writing.
+// offline from the public-domain Hershey "cursive" single-line font via
+// the 'hersheytext' toolkit — there is NO runtime font dependency; only this
+// static path data ships. Regenerate with scripts/gen-hero-strokes (see slice 36
+// notes). Curated to Latin-script greetings the single-stroke font renders
+// cleanly (español + tagalog first); non-Latin scripts have no single-stroke
+// glyphs, so they live in the marquee/floating greetings instead, not here.
 
 export interface HeroStroke { d: string; t: [number, number]; len: number }
 export interface HeroWord {
   text: string;
   lang: string;
-  /** local viewBox [x, y, w, h] — bottom edge (y+h) is the baseline */
+  /** local viewBox [x, y, w, h] */
   vb: [number, number, number, number];
-  /** how far the lowest descender falls below the baseline (font units) */
-  descend: number;
-  /** width / height of the viewBox */
+  /** width / height, for sizing the inline svg from the headline font-size */
   aspect: number;
   /** sum of all stroke lengths (constant-speed pen timing) */
   totalLen: number;
   strokes: HeroStroke[];
 }
 
-/** Shared baseline (font units) — the viewBox bottom of every word. */
-export const BASE_Y = 22;
-
-/** Rendered em per font unit. The word's height is vb.h * EM_PER_UNIT em, so it
- *  scales with the headline font-size and matches its cap height. Tune to taste. */
-export const EM_PER_UNIT = 0.043;
-
-/** Pen stroke width in font units (scales with the word; ~marker weight). */
-export const STROKE_UNITS = 2.1;
-
 export const HERO_WORDS: HeroWord[] = [
  {
   "text": "hola",
   "lang": "español",
   "vb": [
-   -2,
-   -0.68,
-   58.64,
-   22.68
+   -3,
+   -1.72,
+   60.64,
+   26.72
   ],
-  "descend": 0,
-  "aspect": 2.5855,
+  "aspect": 2.2695,
   "totalLen": 214.72,
   "strokes": [
    {
@@ -89,13 +73,12 @@ export const HERO_WORDS: HeroWord[] = [
   "text": "kumusta",
   "lang": "tagalog",
   "vb": [
-   -2,
-   -0.82,
-   107.36,
-   22.82
+   -3,
+   -1.82,
+   109.36,
+   26.82
   ],
-  "descend": 0,
-  "aspect": 4.7046,
+  "aspect": 4.0776,
   "totalLen": 354.88,
   "strokes": [
    {
@@ -160,13 +143,12 @@ export const HERO_WORDS: HeroWord[] = [
   "text": "hello",
   "lang": "english",
   "vb": [
-   -2,
-   -0.68,
-   61.68,
-   22.68
+   -3,
+   -1.72,
+   63.68,
+   26.72
   ],
-  "descend": 0,
-  "aspect": 2.7196,
+  "aspect": 2.3832,
   "totalLen": 246.41,
   "strokes": [
    {
@@ -215,13 +197,12 @@ export const HERO_WORDS: HeroWord[] = [
   "text": "bonjour",
   "lang": "français",
   "vb": [
-   -2,
-   -0.6,
-   99.32,
-   22.6
+   -3,
+   -1.69,
+   101.32,
+   38.34
   ],
-  "descend": 11.67,
-  "aspect": 4.3947,
+  "aspect": 2.6427,
   "totalLen": 321.1,
   "strokes": [
    {
@@ -286,13 +267,12 @@ export const HERO_WORDS: HeroWord[] = [
   "text": "ciao",
   "lang": "italiano",
   "vb": [
-   -2,
-   6,
-   53.28,
-   16
+   -3,
+   5,
+   55.28,
+   20
   ],
-  "descend": 0,
-  "aspect": 3.33,
+  "aspect": 2.764,
   "totalLen": 146.1,
   "strokes": [
    {
@@ -333,13 +313,12 @@ export const HERO_WORDS: HeroWord[] = [
   "text": "hallo",
   "lang": "deutsch",
   "vb": [
-   -2,
-   -0.68,
-   68.4,
-   22.68
+   -3,
+   -1.72,
+   70.4,
+   26.72
   ],
-  "descend": 0,
-  "aspect": 3.0159,
+  "aspect": 2.6347,
   "totalLen": 264.31,
   "strokes": [
    {
@@ -388,13 +367,12 @@ export const HERO_WORDS: HeroWord[] = [
   "text": "merhaba",
   "lang": "türkçe",
   "vb": [
-   -2,
-   -0.65,
-   112.4,
-   22.65
+   -3,
+   -1.69,
+   114.4,
+   26.69
   ],
-  "descend": 0,
-  "aspect": 4.9625,
+  "aspect": 4.2862,
   "totalLen": 357.84,
   "strokes": [
    {
@@ -459,13 +437,12 @@ export const HERO_WORDS: HeroWord[] = [
   "text": "jambo",
   "lang": "kiswahili",
   "vb": [
-   -10,
-   -0.6,
-   86.48,
-   22.6
+   -11,
+   -1.69,
+   88.48,
+   38.34
   ],
-  "descend": 11.67,
-  "aspect": 3.8265,
+  "aspect": 2.3078,
   "totalLen": 276.05,
   "strokes": [
    {
@@ -514,13 +491,12 @@ export const HERO_WORDS: HeroWord[] = [
   "text": "aloha",
   "lang": "hawaiian",
   "vb": [
-   -2,
-   -0.68,
-   75.44,
-   22.68
+   -3,
+   -1.72,
+   77.44,
+   26.72
   ],
-  "descend": 0,
-  "aspect": 3.3263,
+  "aspect": 2.8982,
   "totalLen": 264.12,
   "strokes": [
    {
@@ -569,13 +545,12 @@ export const HERO_WORDS: HeroWord[] = [
   "text": "oi",
   "lang": "português",
   "vb": [
-   -2,
-   6,
-   24.44,
-   16
+   -3,
+   5,
+   26.44,
+   20
   ],
-  "descend": 0,
-  "aspect": 1.5275,
+  "aspect": 1.322,
   "totalLen": 69.72,
   "strokes": [
    {

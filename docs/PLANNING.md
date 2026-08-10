@@ -2569,3 +2569,51 @@ change.**
 | R-101 | Drawn set is Latin-script only (single-stroke font limitation). | ⚙ If a specific non-Latin hello must also *draw*, hand-author its single-stroke SVG and add it to `hero-strokes.ts`; the component already renders whatever's in the array. |
 | R-99 | Pen feel is filler: `PEN_SPEED=0.19` (len/ms), `HOLD_MS=1200`, `ERASE_RATIO=0.55`. | ⚙ Tune in `lib/handwrite.ts`. |
 | R-102 | Word width shifts "to fluency" as different-length words cycle (same as before). | ⚙ Reserve the widest word's width if the reflow reads as jumpy. |
+
+---
+## Slice 37 — Refine the handwritten hero (Option A) (2026-08-09)
+
+Slice 36 drew the greeting correctly but it read as a faint hairline scribble at ~half the height
+of the headline (a screenshot caught it mid-write and looking weak). This is a pure-refinement pass
+— no new mechanism, no new deps — fixing the three things that made it look thin and small:
+
+1. **Marker-weight stroke that scales.** The pen was a fixed 1.3px non-scaling stroke (hairline at
+   any size). Now it's `STROKE_UNITS = 2.1` font units with **no** `non-scaling-stroke`, so it
+   renders as a confident marker line that scales with the word. (Verified against the headline at
+   64px: 2.1u matches the bold "say … to fluency" weight; 1.6u was thin, 2.6u heavy.)
+2. **Sized to the headline.** A shared `EM_PER_UNIT = 0.043` maps font units → em, so a word's
+   height is `vb.h * EM_PER_UNIT` and its ascenders reach the headline's cap height. The scale is
+   **constant** across words, so words with ascenders/descenders are correctly taller — like real
+   writing — instead of every word being squeezed to one box height.
+3. **Correct baseline + slower pace.** `hero-strokes.ts` is regenerated so each word's viewBox
+   **bottom is the shared baseline** (`BASE_Y`, detected as the most common letter-bottom); the
+   inline SVG uses `vertical-align: baseline` so it sits on the text baseline, and descenders (the
+   `j` in "bonjour"/"jambo", `descend` units below) hang below via `overflow: visible`. Timing is
+   slowed for legibility: `PEN_SPEED 0.19 → 0.14`, `HOLD_MS 1200 → 1600`, `ERASE_RATIO 0.55 → 0.6`.
+
+**Pieces.** `lib/hero-strokes.ts` regenerated (baseline-cropped viewBox + `descend`, and new
+exported `BASE_Y` / `EM_PER_UNIT` / `STROKE_UNITS`); `lib/handwrite.ts` retuned; component sizes via
+`EM_PER_UNIT`, draws the scaling stroke, aligns to baseline, and accepts optional `scale` /
+`strokeUnits` overrides; `scripts/gen-hero-strokes.cjs` updated to emit the baseline + constants.
+No `page.tsx` change (the hero call is unchanged; the component API is backward-compatible). No CSS
+change — the slice-36 `hw-draw`/`hw-undraw` keyframes are reused; the installer only re-adds them if
+they're somehow absent (so slice 37 is safe to apply even without 36).
+
+**Verified.** All six files transpile; timing executed in Node with the new defaults (constant-speed
+schedule, back-to-back, last stroke lands exactly on time); data invariants checked (every word's
+`vb` bottom == `BASE_Y`, aspect matches, bonjour descends / hola doesn't). The at-scale hero mock
+("say ⟨word⟩ to fluency" at 64px) confirmed the word now matches the headline weight and size, sits
+on the baseline, and hangs the `j` below.
+
+**Tests: frontend ~same count, updated** (`handwrite.test.ts` new defaults + schedule;
+`hero-strokes.test.ts` baseline/scale constants + `vb`-bottom==BASE_Y + descent invariants;
+`handwritten-greeting.test.tsx` scaling-stroke + baseline assertions). **No migration, no backend
+change.**
+
+### Open questions
+
+| # | Item | Filler decision (changeable) |
+|---|---|---|
+| R-99 (updated) | Feel is filler: `PEN_SPEED=0.14`, `HOLD_MS=1600`, `ERASE_RATIO=0.6`, `EM_PER_UNIT=0.043`, `STROKE_UNITS=2.1`. | ⚙ Tune in `lib/handwrite.ts` (pace) and `lib/hero-strokes.ts` (size/weight), or per-instance via the component's `scale`/`strokeUnits` props. |
+| R-103 | Still a geometric cursive, not literally the owner's hand. | ⚙ Option B on the table: a small local capture tool to record real handwriting as SVG and bake it into the same pipeline. |
+| R-102 | "to fluency" shifts as different-width words cycle. | ⚙ Reserve the widest word's width if the reflow reads as jumpy. |

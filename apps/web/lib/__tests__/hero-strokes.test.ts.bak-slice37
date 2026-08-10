@@ -1,19 +1,5 @@
 /** Hero stroke data — shape + integrity of the generated handwriting paths. */
-import {
-  BASE_Y,
-  EM_PER_UNIT,
-  HERO_WORDS,
-  STROKE_UNITS,
-} from "../hero-strokes";
-
-describe("layout constants", () => {
-  it("exposes a positive baseline, scale, and stroke weight", () => {
-    expect(BASE_Y).toBeGreaterThan(0);
-    expect(EM_PER_UNIT).toBeGreaterThan(0);
-    expect(EM_PER_UNIT).toBeLessThan(1);
-    expect(STROKE_UNITS).toBeGreaterThan(1); // a visible marker weight, not a hairline
-  });
-});
+import { HERO_WORDS } from "../hero-strokes";
 
 describe("HERO_WORDS", () => {
   it("leads with the app's own languages", () => {
@@ -23,27 +9,14 @@ describe("HERO_WORDS", () => {
     expect(HERO_WORDS.map((w) => w.lang)).toContain("tagalog");
   });
 
-  it("every word has a viewBox, positive aspect, and strokes", () => {
+  it("every word has a viewBox, a positive aspect, and strokes", () => {
     for (const w of HERO_WORDS) {
       expect(w.vb).toHaveLength(4);
-      expect(w.vb[2]).toBeGreaterThan(0);
-      expect(w.vb[3]).toBeGreaterThan(0);
+      expect(w.vb[2]).toBeGreaterThan(0); // width
+      expect(w.vb[3]).toBeGreaterThan(0); // height
       expect(w.aspect).toBeGreaterThan(0);
       expect(w.strokes.length).toBeGreaterThan(0);
     }
-  });
-
-  it("every word's viewBox bottom equals the shared baseline", () => {
-    // vb = [x, y, w, h]; bottom = y + h must be BASE_Y so inline baseline aligns.
-    for (const w of HERO_WORDS) {
-      expect(w.vb[1] + w.vb[3]).toBeCloseTo(BASE_Y, 1);
-    }
-  });
-
-  it("records a descent for words with a descender and none otherwise", () => {
-    const byText = Object.fromEntries(HERO_WORDS.map((w) => [w.text, w]));
-    if (byText["bonjour"]) expect(byText["bonjour"].descend).toBeGreaterThan(0);
-    if (byText["hola"]) expect(byText["hola"].descend).toBe(0);
   });
 
   it("aspect matches the viewBox ratio (so sizing is correct)", () => {
