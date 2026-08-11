@@ -10,8 +10,8 @@ import { useEffect, useState } from "react";
 import { learn, type Level } from "@/lib/learn-api";
 
 export function LevelSwitcher({
-  current, label, triggerClassName,
-}: { current?: number; label?: string; triggerClassName?: string }) {
+  current, label, triggerClassName, hideChevron,
+}: { current?: number; label?: string; triggerClassName?: string; hideChevron?: boolean }) {
   const [levels, setLevels] = useState<Level[] | null>(null);
   const [open, setOpen] = useState(false);
 
@@ -28,7 +28,9 @@ export function LevelSwitcher({
         className={triggerClassName ?? "flex items-center gap-2 rounded-full bg-terraza-pill px-4 py-2 text-sm tracking-cozy"}
       >
         {label ?? (current ? `level ${current}` : "jump to a level")}
-        <span aria-hidden className="text-terraza-soft">{open ? "▲" : "▼"}</span>
+        {!hideChevron && (
+          <span aria-hidden className="text-terraza-soft">{open ? "▲" : "▼"}</span>
+        )}
       </button>
 
       {open && (

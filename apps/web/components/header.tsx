@@ -26,6 +26,7 @@ export function Header() {
           <div data-tour="nav-levels">
             <LevelSwitcher
               label="levels"
+              hideChevron
               triggerClassName="flex items-center gap-1 rounded-full px-4 py-2 text-terraza-soft hover:bg-terraza-pill"
             />
           </div>
