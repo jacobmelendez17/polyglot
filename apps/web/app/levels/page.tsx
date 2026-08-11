@@ -4,15 +4,17 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
+import { LevelSwitcher } from "@/components/level-switcher";
 import { Protected } from "@/components/protected";
 import { Card } from "@/components/ui";
 import { items as itemsApi, type LevelProgress } from "@/lib/items-api";
 import { learn, type Level } from "@/lib/learn-api";
 
-// The levels page is now a grid of cards. Clicking a card expands it in place
-// to show every vocabulary and grammar item in that level (fetched from the
-// level-progress endpoint built in slice 8) — no navigation, so browsing the
-// curriculum stays on one screen.
+// The levels page is a grid of cards. Tapping a card expands it in place to
+// show every vocabulary and grammar item in that level (fetched from the
+// level-progress endpoint built in slice 8) — browsing the curriculum stays on
+// one screen. Getting into a level's lesson page is the LevelSwitcher's job now
+// (by request) — the cards no longer link there themselves.
 
 export default function LevelsPage() {
   return (
@@ -20,9 +22,12 @@ export default function LevelsPage() {
       <Header />
       <main className="mx-auto max-w-7xl px-4 py-8">
         <h1 className="mb-1 text-2xl lowercase tracking-cozy">levels</h1>
-        <p className="mb-6 text-terraza-soft">
-          tap a level to see its words and grammar. tap again to start a lesson.
+        <p className="mb-4 text-terraza-soft">
+          tap a level to see its words and grammar. use the dropdown to jump into a level&apos;s lessons.
         </p>
+        <div className="mb-6">
+          <LevelSwitcher />
+        </div>
         <LevelGrid />
       </main>
       <Footer />
@@ -160,12 +165,6 @@ function LevelContents({ level }: { level: Level }) {
   return (
     <div className="border-t border-terraza-dash px-5 pb-5 pt-4">
       <div className="mb-4 flex flex-wrap gap-3">
-        <Link
-          href={`/levels/${level.position}`}
-          className="rounded-full bg-terraza-accent px-5 py-2 text-sm tracking-cozy text-terraza-accentInk"
-        >
-          open lessons →
-        </Link>
         <Link
           href={`/levels/${level.position}/progress`}
           className="rounded-full bg-terraza-pill px-5 py-2 text-sm tracking-cozy"

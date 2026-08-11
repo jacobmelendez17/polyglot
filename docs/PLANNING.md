@@ -2737,3 +2737,37 @@ integration). Frontend: editor page (states + move + edit) — component test to
 | R-108 | Level picker caps at 20 in the UI (`LEVELS`). | ⚙ Cosmetic cap; raise or make it a free number input if levels exceed 20. |
 | R-109 | Editor edits core fields; the full item schema (accepted/rejected answers, example sentences, audio) isn't exposed yet. | ⚙ Add an "advanced" section per item in a later slice; the API already stores these. |
 | R-110 | Grammar has no batch (always the grammar batch). | ⚙ Matches the curriculum model; revisit only if grammar ever needs sub-batches. |
+
+---
+## Slice 40 — Level-switcher dropdown (by request) (2026-08-10)
+
+**The problem.** Getting to a level's lesson page meant going to `/levels`, tapping a card open,
+and clicking "open lessons →" inside it — three steps, and no way to jump directly from one
+level's page to another without backing out to the index first.
+
+**`LevelSwitcher`** (new `components/level-switcher.tsx`): a dropdown trigger — "jump to a level",
+or "level N" when it knows which level it's on — that opens a grid of number-icon buttons, one per
+level. Unlocked levels link straight to `/levels/{n}`; locked ones render as a dimmed, disabled,
+non-clickable span with a "— locked" tooltip, the same lock treatment `/levels` already used
+elsewhere (never colour alone). Fetches `learn.levels()` itself, so it drops into any page with no
+props beyond an optional `current` (which also underlines/borders that level's icon and swaps the
+trigger label to show it).
+
+**Placed at the top of the three levels-section pages**: `/levels`, `/levels/[level]`, and
+`/levels/[level]/progress`. Deliberately **not** on the active lesson-taking page
+(`/levels/[level]/lessons/[lesson]`) — that's a focused task flow, not a browsing page, and jumping
+levels mid-lesson isn't something to make one click away.
+
+**By request, this replaces one existing path, not two.** `/levels`' expandable cards (tap to
+preview a level's words/grammar in place) stay exactly as they were — that's still how you browse
+curriculum. Only the "open lessons →" link inside the expanded card is gone; entering a level's
+lesson page is the switcher's job now. "full progress →" is untouched.
+
+**No migration, no backend change.** Reuses the existing `GET /api/v1/levels` the index page
+already called.
+
+**Tests:** none added — no new pure logic. Verified live in a headless browser: dropdown opens and
+lists all levels with correct lock state, clicking an unlocked level navigates to its page with no
+console errors, the trigger shows "level 1" and highlights it when already on `/levels/1`, and
+both target texts ("open lessons"/confirmed absent, "full progress"/confirmed present once a card
+is expanded) are correct.

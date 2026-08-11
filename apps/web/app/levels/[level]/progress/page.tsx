@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Header } from "@/components/header";
+import { LevelSwitcher } from "@/components/level-switcher";
 import { ItemTile } from "@/components/progress-bits";
 import { Protected } from "@/components/protected";
 import { Card } from "@/components/ui";
@@ -87,7 +88,10 @@ function ProgressView() {
       <Link href={`/levels/${level}`} className="text-sm text-terraza-soft underline underline-offset-2">
         ← level {level}
       </Link>
-      <h1 className="mb-1 mt-2 text-2xl lowercase tracking-cozy">
+      <div className="mb-4 mt-2">
+        <LevelSwitcher current={level} />
+      </div>
+      <h1 className="mb-1 text-2xl lowercase tracking-cozy">
         {data.title} · progress
       </h1>
       <p className="text-terraza-soft">

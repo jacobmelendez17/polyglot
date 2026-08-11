@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Header } from "@/components/header";
+import { LevelSwitcher } from "@/components/level-switcher";
 import { Protected } from "@/components/protected";
 import { Card } from "@/components/ui";
 import { learn, type Lesson } from "@/lib/learn-api";
@@ -24,7 +25,10 @@ export default function LevelPage() {
       <Header />
       <main className="mx-auto max-w-3xl px-4 py-8">
         <Link href="/levels" className="text-sm text-terraza-soft">← levels</Link>
-        <div className="mb-6 mt-2 flex items-center gap-4">
+        <div className="mb-4 mt-2">
+          <LevelSwitcher current={level} />
+        </div>
+        <div className="mb-6 flex items-center gap-4">
           <h1 className="text-2xl lowercase tracking-cozy">level {level}</h1>
           <Link
             href={`/levels/${level}/progress`}
