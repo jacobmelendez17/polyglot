@@ -112,7 +112,6 @@ def _vocab_to_model(
 def _apply_vocab(model: VocabularyItem, it: ParsedVocab, import_id: uuid.UUID) -> None:
     model.term = it.term
     model.normalized_term = it.normalized_term
-    model.batch = getattr(it, "batch", 1) or 1
     model.primary_translation = it.primary_translation
     model.part_of_speech = it.part_of_speech
     model.pronunciation = it.pronunciation

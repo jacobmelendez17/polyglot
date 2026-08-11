@@ -29,7 +29,6 @@ function AdminInner() {
       <Header />
       <main className="mx-auto max-w-5xl px-4 py-8">
         <h1 className="mb-6 text-2xl lowercase tracking-cozy">admin</h1>
-        <a href="/admin/curriculum" className="mb-6 inline-block rounded-full border border-terraza-dash px-4 py-1.5 text-sm text-terraza-ink hover:border-terraza-accent" data-testid="curriculum-editor-link">open curriculum editor →</a>
         <div className="flex flex-col gap-6">
           {canImport && <ImportSection onImported={() => setRefreshKey((k) => k + 1)} />}
           <ContentSection refreshKey={refreshKey} />

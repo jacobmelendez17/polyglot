@@ -2676,3 +2676,64 @@ Split out so the import fix ships now, fully tested, rather than waiting on the 
 | R-104 | Grammar `Batch` (all 5 in the sheet) isn't stored on `GrammarPoint` (grammar is one batch/level). | ⚙ Fine for now; the in-app editor (S39) can expose batch if grammar ever needs sub-batches. |
 | R-105 | Alias list is a fixed table. | ⚙ Extend `_HEADER_ALIASES` as new sheet shapes appear. |
 | R-106 | L16 grammar has 7 points (not 12); levels beyond 5 previously had no grammar. | ⚙ Real content gap — flagged as a warning, not fabricated. Fill via the sheet. |
+
+---
+## Slice 39 — In-app curriculum editor: CRUD + move (§22/§24) (2026-08-10)
+
+The point-and-click side of "fully edit / delete / add / move into any unit or batch." Follows
+slice 38's import fix. Admins can now manage vocabulary and grammar directly in the app, not just
+via CSV.
+
+**Schema.** Vocabulary stored its level (via `module_id`) but had **no batch** column — the CSV
+`Batch` was read and dropped — so "move to a batch" wasn't representable. Added
+`vocabulary_items.batch` (Integer, NOT NULL, default 1). The migration is generated at install time
+by `gen_migration.py`, which computes the current Alembic **head from the version files** (pure file
+parsing, no DB) and chains to it, aborting if it can't find exactly one head — so it never risks a
+broken `alembic upgrade head`. The importer's `_apply_vocab` now persists batch, so CSV round-trips
+place items in the right batch too.
+
+**Backend API** (appended to the admin router; capability-gated + audit-logged, §22):
+- `GET /admin/content/{vocabulary,grammar}/editor` — editor list incl. batch, status, archived
+  (separate from the summary list so `ContentItemOut`/schemas were untouched).
+- `POST /admin/content/{vocabulary,grammar}` — create (draft).
+- `PATCH /admin/content/{vocabulary,grammar}/{id}` — edit fields.
+- `POST /admin/content/{vocabulary,grammar}/{id}/move` — move to any level (+ batch for vocab);
+  creates the target module if it doesn't exist yet.
+- `DELETE …/{id}` — **soft delete** (sets `deleted_at` + `archived`; needs `content_archive`).
+- `POST …/{id}/restore` — un-archive back to draft.
+Create/edit/move need `content_edit`; archive/restore need `content_archive`. Permanent deletion
+stays owner-only (`permanent_delete_approve`) in the archives view — not built here.
+
+**Validation.** Pure `app/domain/content_edit.py` (level 1–200, batch 1–4, non-empty term, article/
+gender enum membership, and the §6 rule that only nouns carry an article — non-nouns are coerced to
+`none/none`, matching the DB CHECK constraint). Pydantic `Field` bounds on every request body.
+
+**Frontend.** New `/admin/curriculum` page: kind tabs (vocab/grammar), level filter, add form,
+per-row **edit** (inline form), **move** (level select, plus batch select for vocab), **archive**,
+and **restore** (with a "show archived" toggle). All four states — loading / empty / error / success
+(toast). Controls are native selects/buttons (keyboard-accessible, §29); drag-to-move is deferred
+polish. New `lib/editor-api.ts` client; a link added to the admin page (editor also reachable
+directly).
+
+**Verified.** Pure validators executed (all pass). The appended route block, the generated
+migration, both model/importer patchers, and both test files `py_compile`. The migration generator
+was exercised on a fake versions tree: chains to the real head, is idempotent, and aborts on
+multiple heads. Editor page + client transpile through esbuild; the admin-link patch output
+transpiles. All patchers are idempotent and abort-without-writing on divergence.
+
+**Not runnable here:** the DB integration tests (`tests/test_admin_editor_db.py`) need the project's
+testcontainers Postgres — they run in CI. They're written to the existing admin-test patterns
+(signup → elevate role → call routes) and cover CRUD, move, batch, soft-delete/restore,
+capability gating (a moderator with `admin_panel` but not `content_edit` gets 403), and audit writes.
+
+**Tests: backend +~12** (`test_content_edit.py` pure validation, runnable now; `test_admin_editor_db.py`
+integration). Frontend: editor page (states + move + edit) — component test to add in CI.
+
+### Open questions
+
+| # | Item | Filler decision (changeable) |
+|---|---|---|
+| R-107 | Move UI uses level/batch **selects**, not drag-and-drop. | ⚙ Selects are fully functional + accessible now; add DnD (with these selects as the keyboard fallback, §29) as polish later. |
+| R-108 | Level picker caps at 20 in the UI (`LEVELS`). | ⚙ Cosmetic cap; raise or make it a free number input if levels exceed 20. |
+| R-109 | Editor edits core fields; the full item schema (accepted/rejected answers, example sentences, audio) isn't exposed yet. | ⚙ Add an "advanced" section per item in a later slice; the API already stores these. |
+| R-110 | Grammar has no batch (always the grammar batch). | ⚙ Matches the curriculum model; revisit only if grammar ever needs sub-batches. |

@@ -99,8 +99,6 @@ class VocabularyItem(Base, ContentMixin):
     primary_translation: Mapped[str] = mapped_column(String(200), default="")
     part_of_speech: Mapped[str] = mapped_column(String(40), default="")
     difficulty_rank: Mapped[int] = mapped_column(Integer, default=0)
-    # Which of the 4 themed vocab batches this word belongs to (slice 39).
-    batch: Mapped[int] = mapped_column(Integer, default=1)
     pronunciation: Mapped[str] = mapped_column(String(120), default="")
     ipa: Mapped[str] = mapped_column(String(120), default="")
     meaning: Mapped[str] = mapped_column(Text, default="")
