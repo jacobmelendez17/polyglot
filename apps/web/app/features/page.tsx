@@ -40,7 +40,7 @@ function Roadmap() {
 
   return (
     <>
-      <h1 className="text-2xl lowercase tracking-cozy">unlock roadmap</h1>
+      <h1 className="text-2xl lowercase tracking-cozy">journey</h1>
       <p className="mt-1 mb-6 text-terraza-soft">
         {data.completed_levels === 0
           ? "complete your first level to start unlocking features."

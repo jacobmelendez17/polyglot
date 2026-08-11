@@ -36,7 +36,7 @@ export function Header() {
           <Link href="/practice" className="rounded-full px-4 py-2 text-terraza-soft hover:bg-terraza-pill">
             practice
           </Link>
-            <Link href="/features" className="rounded-full px-4 py-2 text-terraza-soft hover:bg-terraza-pill">unlocks</Link>
+            <Link href="/features" className="rounded-full px-4 py-2 text-terraza-soft hover:bg-terraza-pill">journey</Link>
 
           <div className="relative">
             <button
