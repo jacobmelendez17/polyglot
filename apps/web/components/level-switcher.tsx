@@ -9,7 +9,9 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { learn, type Level } from "@/lib/learn-api";
 
-export function LevelSwitcher({ current }: { current?: number }) {
+export function LevelSwitcher({
+  current, label, triggerClassName,
+}: { current?: number; label?: string; triggerClassName?: string }) {
   const [levels, setLevels] = useState<Level[] | null>(null);
   const [open, setOpen] = useState(false);
 
@@ -23,9 +25,9 @@ export function LevelSwitcher({ current }: { current?: number }) {
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="flex items-center gap-2 rounded-full bg-terraza-pill px-4 py-2 text-sm tracking-cozy"
+        className={triggerClassName ?? "flex items-center gap-2 rounded-full bg-terraza-pill px-4 py-2 text-sm tracking-cozy"}
       >
-        {current ? `level ${current}` : "jump to a level"}
+        {label ?? (current ? `level ${current}` : "jump to a level")}
         <span aria-hidden className="text-terraza-soft">{open ? "▲" : "▼"}</span>
       </button>
 

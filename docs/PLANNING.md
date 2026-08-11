@@ -2771,3 +2771,14 @@ lists all levels with correct lock state, clicking an unlocked level navigates t
 console errors, the trigger shows "level 1" and highlights it when already on `/levels/1`, and
 both target texts ("open lessons"/confirmed absent, "full progress"/confirmed present once a card
 is expanded) are correct.
+
+**Follow-up, same day (by request): the header nav's "levels" link is the switcher now.**
+`LevelSwitcher` gained two optional props — `label` and `triggerClassName` — so the same component
+can render as a plain nav-style link instead of its default filled-pill trigger. `components/header.tsx`
+swaps the old `<Link href="/levels">` for `<LevelSwitcher label="levels" triggerClassName="...">`,
+wrapped in the same `data-tour="nav-levels"` div the guided tour already targeted (no tour changes
+needed). Clicking "levels" in the header now opens the dropdown from *any* page instead of
+navigating to `/levels` first — confirmed live: the URL doesn't change on click, the panel renders
+correctly positioned regardless of which page it's opened from, and picking a level still navigates
+correctly. `/levels` itself is unchanged and still reachable (its own in-page switcher, and the
+"← levels" back links on the detail/progress pages).

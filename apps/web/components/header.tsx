@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { LevelSwitcher } from "@/components/level-switcher";
 import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 
@@ -22,9 +23,12 @@ export function Header() {
         </Link>
 
         <nav className="flex items-center gap-1" aria-label="Main">
-          <Link href="/levels" data-tour="nav-levels" className="rounded-full px-4 py-2 text-terraza-soft hover:bg-terraza-pill">
-            levels
-          </Link>
+          <div data-tour="nav-levels">
+            <LevelSwitcher
+              label="levels"
+              triggerClassName="flex items-center gap-1 rounded-full px-4 py-2 text-terraza-soft hover:bg-terraza-pill"
+            />
+          </div>
           <Link href="/decks" className="rounded-full px-4 py-2 text-terraza-soft hover:bg-terraza-pill">
             decks
           </Link>
