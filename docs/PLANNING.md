@@ -2782,3 +2782,37 @@ navigating to `/levels` first — confirmed live: the URL doesn't change on clic
 correctly positioned regardless of which page it's opened from, and picking a level still navigates
 correctly. `/levels` itself is unchanged and still reachable (its own in-page switcher, and the
 "← levels" back links on the detail/progress pages).
+
+---
+## Slice 40 — Level page shows grammar & vocabulary cards (§20, by request) (2026-08-11)
+
+The `/levels/[level]` page listed **lessons** (lesson 1–4 with start/review). By request — and to
+match §20 ("displays all vocabulary and grammar for that level; clicking an item shows all
+information about it") — it now shows the level's actual curriculum: a **grammar** section of cards
+followed by a **vocabulary** section of cards, each card linking to that item's page
+(`/items/{type}/{id}`, which already exists).
+
+**Frontend-only.** Swapped the data source from `learn.lessons(level)` to the existing
+`items.levelProgress(level)` (`GET /api/v1/levels/{level}/progress`) — the same endpoint the
+`/levels` inline expansion already uses — and rendered its `items` split by `item_type` into two
+card grids (grammar first, then vocabulary). Each card shows the term (with the article prefix for
+nouns), translation, part of speech, and a status pill (perfect ✦ / SRS stage / "not started") — not
+colour alone (§29), with hover-lift, keyboard focus rings, and `motion-reduce` fallbacks. All four
+states kept: loading, empty, error, populated. The lessons themselves are still reachable from
+`/levels` ("open lessons") and remain unchanged.
+
+No API, schema, or migration changes.
+
+**Verified.** The rewritten page and its component test transpile through esbuild; the install
+replaces the page (backing up the old one) and is idempotent.
+
+**Tests: frontend +4** (`levels/[level]/__tests__/level-page.test.tsx`): loading state; grammar-then-
+vocabulary card order with correct `/items/...` links and the article shown; empty state; error
+state. Runs in CI (jest/RTL).
+
+### Open questions
+
+| # | Item | Filler decision (changeable) |
+|---|---|---|
+| R-111 | The old lesson list moved off this page. | ⚙ Lessons still open from /levels ("open lessons") and each item page; if you want a "start lessons" button on the level page too, easy to add back. |
+| R-112 | Card status uses the SRS stage name / "not started" / "perfect". | ⚙ Swap in the richer `progress-bits` pills (SrsPill/LeechPill) if you want the fuller progress affordances here. |
