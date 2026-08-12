@@ -2816,3 +2816,46 @@ state. Runs in CI (jest/RTL).
 |---|---|---|
 | R-111 | The old lesson list moved off this page. | ⚙ Lessons still open from /levels ("open lessons") and each item page; if you want a "start lessons" button on the level page too, easy to add back. |
 | R-112 | Card status uses the SRS stage name / "not started" / "perfect". | ⚙ Swap in the richer `progress-bits` pills (SrsPill/LeechPill) if you want the fuller progress affordances here. |
+
+---
+## Slice 41 — Header polish + level-page tints (by request) (2026-08-11)
+
+Three requested changes.
+
+**1. Language switcher: flags + "coming soon" for empty languages.**
+- The trigger now shows just the **flag** of the active language (globe fallback), with the full
+  name kept as an `aria-label` + `sr-only` text and a `title` (§29 — never a flag alone for AT).
+- Languages that are enabled but have **no published curriculum** (e.g. Tagalog) are **greyed out**,
+  can't be selected, and show a **"coming soon"** tooltip on hover/focus. Readiness is data-driven,
+  not hardcoded: a new `ready` flag on `GET /api/v1/languages` (backend), computed by
+  `languages.ready_codes(db)` = languages with ≥1 published, non-deleted vocab or grammar item.
+  `LanguageOut.ready` defaults `true` so `/me/language` is unaffected. `flagFor(code)` maps known
+  codes (es-MX→🇲🇽, tl→🇵🇭, …) and otherwise derives the flag from the region subtag.
+
+**2. Account menu dismisses properly.** The header profile dropdown only closed by re-clicking the
+avatar; it now also closes on an **outside click** or **Escape** (mirrors the switcher's pattern),
+while the avatar still toggles it.
+
+**3. Level page tints.** On `/levels/[level]`, grammar cards are tinted **red** and vocabulary cards
+**green** (soft `red-500/green-500` washes that work in light/dark), with matching section-heading
+colours. Colour is additive — the "GRAMMAR"/"VOCABULARY" headings and card text still distinguish
+them, so nothing depends on colour alone (§29).
+
+**Verified.** All frontend files transpile; the patched languages service/route and header compile/
+transpile; every patcher is idempotent and aborts-without-writing on divergence. The full install
+ran end-to-end.
+
+**Tests: frontend +5** (`flagFor` mapping/region/fallback; switcher shows the active flag with an
+accessible name; a not-ready language is `aria-disabled` with a "coming soon" tooltip) +
+**backend +1 integration** (`test_languages_ready.py`: enabled-but-empty → `ready:false`; publishing
+one item flips it to `true`). Backend integration runs in CI (needs the testcontainers DB).
+
+**No migration, no schema change** (readiness is computed from existing published content).
+
+### Open questions
+
+| # | Item | Filler decision (changeable) |
+|---|---|---|
+| R-113 | Trigger shows flag only; the dropdown list keeps flag **+ name** for usability. | ⚙ If you want flags-only in the list too, drop the name span — but names help tell similar flags apart. |
+| R-114 | Card tints use Tailwind `red-500`/`green-500` washes, not brand tokens. | ⚙ Swap for dedicated `--terraza-grammar` / `--terraza-vocab` tokens if you want them themeable. |
+| R-115 | Flag map covers the current + likely-next languages; unknown codes fall back to region → globe. | ⚙ Extend `flagFor` as languages are added. |

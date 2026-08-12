@@ -17,7 +17,6 @@ class LanguageOut(BaseModel):
     code: str
     name: str
     native_name: str
-    ready: bool = True
 
 
 class SetLanguageIn(BaseModel):
@@ -31,8 +30,7 @@ def _http(e: svc.LanguageError) -> HTTPException:
 
 @router.get("/languages", response_model=list[LanguageOut])
 def list_languages(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    ready = svc.ready_codes(db)
-    return [{**svc.as_dict(l), "ready": l.code in ready} for l in svc.list_enabled(db)]
+    return [svc.as_dict(l) for l in svc.list_enabled(db)]
 
 
 @router.get("/me/language", response_model=LanguageOut)

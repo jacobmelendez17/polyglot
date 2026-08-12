@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { LevelSwitcher } from "@/components/level-switcher";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 
 const ADMIN_CAP = "admin_panel";
@@ -14,24 +14,6 @@ export function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const showAdmin = user?.capabilities.includes(ADMIN_CAP);
   const showDev = user?.capabilities.includes(DEV_CAP);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  // Close the account menu on an outside click or Escape.
-  useEffect(() => {
-    if (!menuOpen) return;
-    const onClick = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMenuOpen(false);
-    };
-    document.addEventListener("mousedown", onClick);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onClick);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [menuOpen]);
 
   return (
     <header className="border-b border-terraza-dash">
@@ -56,7 +38,7 @@ export function Header() {
           </Link>
             <Link href="/features" className="rounded-full px-4 py-2 text-terraza-soft hover:bg-terraza-pill">journey</Link>
 
-          <div className="relative" ref={menuRef}>
+          <div className="relative">
             <button
               onClick={() => setMenuOpen((o) => !o)}
               className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-terraza-green bg-terraza-pink"

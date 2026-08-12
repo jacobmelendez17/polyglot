@@ -8,10 +8,11 @@ import { Protected } from "@/components/protected";
 import { Card } from "@/components/ui";
 import { items, type LevelProgress, type LevelProgressItem } from "@/lib/items-api";
 
-// The level page shows the level's curriculum: every grammar point as a card
-// (tinted red), then every vocabulary word as a card (tinted green). Each card
-// links to that item's page (§20). Colour is additive — the section headings and
-// the card text still distinguish the two, so nothing relies on colour alone.
+// The level page now shows the level's actual curriculum: every grammar point as
+// a card, then every vocabulary word as a card. Each card links to that item's
+// page (§20 — "displays all vocabulary and grammar for that level; clicking an
+// item shows all information about it"). Lessons are still reachable from
+// /levels (the "open lessons" flow) and each item's own page.
 
 export default function LevelPage() {
   const params = useParams();
@@ -51,16 +52,19 @@ export default function LevelPage() {
           </Link>
         </div>
 
+        {/* error */}
         {error && (
           <Card>
             <p role="alert" className="text-terraza-danger">{error}</p>
           </Card>
         )}
 
+        {/* loading */}
         {!data && !error && (
           <p className="font-empty italic text-terraza-soft">un momento ~</p>
         )}
 
+        {/* empty */}
         {data && grammar.length === 0 && vocab.length === 0 && (
           <Card>
             <p className="text-center font-empty italic text-terraza-soft">
@@ -72,13 +76,14 @@ export default function LevelPage() {
           </Card>
         )}
 
+        {/* content */}
         {data && (grammar.length > 0 || vocab.length > 0) && (
           <div className="flex flex-col gap-10">
             {grammar.length > 0 && (
-              <ItemSection title="grammar" tone="grammar" count={grammar.length} items={grammar} />
+              <ItemSection title="grammar" count={grammar.length} items={grammar} level={level} />
             )}
             {vocab.length > 0 && (
-              <ItemSection title="vocabulary" tone="vocab" count={vocab.length} items={vocab} />
+              <ItemSection title="vocabulary" count={vocab.length} items={vocab} level={level} />
             )}
           </div>
         )}
@@ -87,39 +92,23 @@ export default function LevelPage() {
   );
 }
 
-type Tone = "grammar" | "vocab";
-
-const TONE = {
-  grammar: {
-    heading: "text-red-700 dark:text-red-300",
-    card: "border-red-400/45 bg-red-500/[0.06] hover:bg-red-500/[0.10]",
-  },
-  vocab: {
-    heading: "text-green-700 dark:text-green-300",
-    card: "border-green-500/45 bg-green-500/[0.06] hover:bg-green-500/[0.10]",
-  },
-} as const;
-
 function ItemSection({
-  title, tone, count, items: rows,
+  title, count, items: rows, level,
 }: {
   title: string;
-  tone: Tone;
   count: number;
   items: LevelProgressItem[];
+  level: number;
 }) {
   return (
     <section aria-labelledby={`sec-${title}`}>
-      <h2
-        id={`sec-${title}`}
-        className={`mb-3 text-xs tracking-label ${TONE[tone].heading}`}
-      >
+      <h2 id={`sec-${title}`} className="mb-3 text-xs tracking-label text-terraza-soft">
         {title.toUpperCase()} · {count}
       </h2>
       <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {rows.map((item) => (
           <li key={`${item.item_type}:${item.item_id}`}>
-            <ItemCard item={item} tone={tone} />
+            <ItemCard item={item} level={level} />
           </li>
         ))}
       </ul>
@@ -127,7 +116,7 @@ function ItemSection({
   );
 }
 
-function ItemCard({ item, tone }: { item: LevelProgressItem; tone: Tone }) {
+function ItemCard({ item, level }: { item: LevelProgressItem; level: number }) {
   const article = item.article && item.article !== "none" ? item.article : null;
   const status = item.perfect
     ? "perfect"
@@ -139,7 +128,7 @@ function ItemCard({ item, tone }: { item: LevelProgressItem; tone: Tone }) {
     <Link
       href={`/items/${item.item_type}/${item.item_id}`}
       aria-label={`${item.term}${item.translation ? ` — ${item.translation}` : ""}, ${status}`}
-      className={`flex h-full flex-col rounded-card border p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-terraza-ink motion-reduce:transition-none motion-reduce:hover:translate-y-0 ${TONE[tone].card}`}
+      className="flex h-full flex-col rounded-card border border-terraza-dash bg-terraza-card p-4 transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-terraza-ink motion-reduce:transition-none motion-reduce:hover:translate-y-0"
     >
       <div className="flex items-start gap-2">
         <p className="mr-auto text-lg lowercase tracking-cozy text-terraza-ink">
@@ -157,13 +146,15 @@ function ItemCard({ item, tone }: { item: LevelProgressItem; tone: Tone }) {
 
       <div className="mt-3 flex items-center gap-2 text-xs">
         {item.part_of_speech && (
-          <span className="rounded-full bg-terraza-card px-2 py-0.5 tracking-cozy text-terraza-ink">
+          <span className="rounded-full bg-terraza-pill px-2 py-0.5 tracking-cozy text-terraza-ink">
             {item.part_of_speech}
           </span>
         )}
         <span
-          className={`ml-auto rounded-full border px-2 py-0.5 tracking-cozy text-terraza-soft ${
-            item.learned ? "border-terraza-dash" : "border-dashed border-terraza-dash"
+          className={`ml-auto rounded-full border px-2 py-0.5 tracking-cozy ${
+            item.learned
+              ? "border-terraza-dash text-terraza-soft"
+              : "border-dashed border-terraza-dash text-terraza-soft"
           }`}
         >
           {status}

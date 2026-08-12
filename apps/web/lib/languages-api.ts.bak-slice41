@@ -5,9 +5,6 @@ export interface Language {
   code: string;
   name: string;
   native_name: string;
-  /** Whether this language has published curriculum yet (slice 41). Defaults
-   *  true so /me/language (which doesn't compute readiness) is unaffected. */
-  ready?: boolean;
 }
 
 export const languages = {
