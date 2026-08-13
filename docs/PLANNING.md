@@ -2859,3 +2859,46 @@ one item flips it to `true`). Backend integration runs in CI (needs the testcont
 | R-113 | Trigger shows flag only; the dropdown list keeps flag **+ name** for usability. | ⚙ If you want flags-only in the list too, drop the name span — but names help tell similar flags apart. |
 | R-114 | Card tints use Tailwind `red-500`/`green-500` washes, not brand tokens. | ⚙ Swap for dedicated `--terraza-grammar` / `--terraza-vocab` tokens if you want them themeable. |
 | R-115 | Flag map covers the current + likely-next languages; unknown codes fall back to region → globe. | ⚙ Extend `flagFor` as languages are added. |
+
+---
+## Slice 42 — Profile tabs + settings sidebar (by request) (2026-08-12)
+
+Two frontend restructures; no API, schema, or migration changes.
+
+**Profile → tabs.** `/profile` now has a tab bar: **profile** (the existing name/bio/timezone editor
++ read-only xp/rank/streak stats), **achievements**, and a right-aligned **＋ add friends** icon that
+opens a friends panel. Achievements and friends aren't built (§18 community is future work), so those
+tabs show honest **"coming soon"** states — no fabricated badges or friend data. Tabs use
+`role="tab"`/`aria-selected` and are keyboard-operable; the add-friends control has an `aria-label`.
+
+**Settings → left sidebar.** `/settings` becomes a two-column layout: a sticky left nav of categories
+— **lessons · reviews · appearance · curriculum · intermissions · danger zone** — and a right pane
+showing the active one. On mobile the sidebar collapses to a horizontal scroll row. Every setting the
+old single-column page surfaced is preserved and redistributed sensibly:
+- lessons: batch size.
+- reviews: order, batch toggle + size, srs indicator, leech threshold, **+ an "answering" group**
+  (reveal full answer, allow cheating, accept synonyms, allow skipping, undo).
+- appearance: theme, font size, color theme, **+ immersion mode** (level-10 gated).
+- curriculum: mode, back-to-back + order, dialect.
+- intermissions: the show-intermissions toggle + a link to view finished intermissions.
+- **danger zone** (new): a real **log out** (via `useAuth`), and a **delete account** control that
+  is honestly a placeholder — deletion isn't wired yet, so it points the user to the support page
+  rather than pretending to delete.
+
+Auto-save, per-field "saved ✓", optimistic update with revert-on-error, and per-field error messages
+are kept from the original page.
+
+**Verified.** Both pages and their tests transpile through esbuild; the installer backs up and
+replaces the two pages and is idempotent.
+
+**Tests: frontend +6** (`profile-page.test.tsx`: default profile tab with editable name + stats,
+achievements coming-soon, add-friends panel; `settings-page.test.tsx`: all six sidebar categories
+present, defaults to lessons, switches panels, danger-zone log-out + delete controls). Runs in CI.
+
+### Open questions
+
+| # | Item | Filler decision (changeable) |
+|---|---|---|
+| R-116 | Achievements + friends are placeholders. | ⚙ Build achievements (badges off streaks/levels/perfect items) and the friends/community layer (§18) in their own slices; the tabs are ready. |
+| R-117 | "answering" toggles fold under **reviews** (not a top-level sidebar item, per the requested six). | ⚙ Split "answering" into its own sidebar category if you'd rather; it's a one-line add. |
+| R-118 | Delete-account is a placeholder pointing to support. | ⚙ Wire a real `DELETE /me/account` (soft-delete + grace period + re-auth confirm) when account deletion is scoped. |
