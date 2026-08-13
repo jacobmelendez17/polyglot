@@ -37,7 +37,7 @@ export function LevelSwitcher({
         <div
           role="menu"
           aria-label="Jump to a level"
-          className="absolute left-0 z-20 mt-2 w-64 rounded-card border border-terraza-dash bg-terraza-card p-3 shadow-lg"
+          className="absolute left-1/2 z-20 mt-2 w-64 -translate-x-1/2 rounded-card border border-terraza-dash bg-terraza-card p-3 shadow-lg"
         >
           {levels === null ? (
             <p className="p-2 text-center font-empty italic text-terraza-soft">un momento ~</p>
