@@ -8,9 +8,9 @@ Per-user, per-item free-text note (≤250 words, enforced in the service).
 """
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 from app.db.base import GUID
-from app.models.enums import ItemType
 
 revision = 'c73f0a91b2e5'
 down_revision = 'b53c9f10a7d4'
@@ -19,11 +19,12 @@ depends_on = None
 
 
 def upgrade() -> None:
+    item_type_enum = postgresql.ENUM('vocabulary', 'grammar', name='item_type', create_type=False)
     op.create_table(
         "user_item_notes",
         sa.Column("id", GUID(), primary_key=True),
         sa.Column("user_id", GUID(), sa.ForeignKey("users.id"), nullable=False),
-        sa.Column("item_type", sa.Enum(ItemType, name="item_type", create_type=False), nullable=False),
+        sa.Column("item_type", item_type_enum, nullable=False),
         sa.Column("item_id", GUID(), nullable=False),
         sa.Column("body", sa.Text(), nullable=False, server_default=""),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False,
