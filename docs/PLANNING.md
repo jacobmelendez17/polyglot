@@ -2950,3 +2950,59 @@ tag/theme decks, level-milestone decks, leech/perfect/due-today, difficulty tier
 | R-120 | Custom decks are created empty; no item-picker yet. | ⚙ Add "add to deck" from item pages (writes item_refs); the table already stores them. |
 | R-121 | Counts use es-MX (matching the existing decks service), not the active language. | ⚙ Thread active language through decks when R-65 is done. |
 | R-122 | Thresholds (20 verbs, 5 irregular, …) are filler constants. | ⚙ Tune in `deck_unlock.py`; they're named per deck. |
+
+---
+## Slice 44 — Item page redesign + per-item notes (by request) (2026-08-13)
+
+Reworked `/items/[type]/[id]` to the requested layout, and added a couple of small backends the
+design needs. Content width is now `max-w-4xl` (wider, not full-bleed), section headings are larger,
+and the section spacing is fixed (`gap-8`), which removes the "your synonyms" overlap.
+
+**New layout, top → bottom**
+- **Hero, no card:** big centered term + translation + audio + status. When it scrolls out of view an
+  IntersectionObserver reveals a **sticky sub-header** (term · translation · SRS) below the app header.
+- **Pronunciation box** (pronunciation, IPA, play button) | **synonyms & variants** (curriculum
+  synonyms + variants, plus the learner's own synonyms with add/remove).
+- **meaning** (dictionary definition) · **curriculum notes** (admin-authored: grammar explanation/
+  structure today; a dedicated vocab field is a later slice) · **your notes** (editable textarea with a
+  live word count, ≤250 words, and clear / save buttons bottom-right).
+- **context phrases** — WaniKani-style tabs on the left, phrases on the right. The `context` JSON shape
+  isn't fixed, so a defensive normaliser accepts several key spellings and shows an empty state when
+  there's nothing.
+- **examples** — sentence + translation + audio.
+- **your progress** (SRS pill + "<time> until next review") | **practice stages** (Uno–Cinco dots per
+  category).
+- **item stats** — meaning / reading / combined accuracy (derived from review history by prompt
+  direction), plus unlock and retiring dates.
+
+**Review-time rounding** (`timeUntilReview`, pure + tested): month → week → day → hour → "less than an
+hour", then exact minutes in the last five ("4 minutes until next review"); "review available now" when
+due. Verified against all boundaries.
+
+**Backend — per-item notes.** New `user_item_notes` table (unique per user+item; migration generated at
+install time, chained to the real Alembic head, aborts on multiple heads). `UserItemNote` model appended
+to `progress.py`. `GET/PUT /api/v1/items/{type}/{id}/note` on the items router, scoped per user and
+level-gated like every other item read. The 250-word cap is a pure validator (`domain/notes.py`),
+enforced server-side (422 over the limit) and mirrored in the UI's live counter.
+
+**Item stats need no new backend** — meaning (es_to_en) vs reading (en_to_es) accuracy is computed on the
+client from the existing history endpoint; unlock/retire dates come from `progress`.
+
+**Verified.** Pure notes validator + the review-time formatter run green (all boundaries); the migration,
+the `UserItemNote` model block, the service block, the route block, and both backend test files
+`py_compile`; the migration generator chains to head, is idempotent, and aborts on multiple heads; the
+item page + helpers transpile. Installer is idempotent and aborts-without-writing on divergence.
+
+**Tests: backend +10** (`test_notes.py` pure; `test_item_notes_db.py` integration: empty→save→reload,
+clear, 250-word rejection, auth required, per-user isolation) **+ frontend** (`item-extras.test.ts`:
+time rounding across every bucket, word count, date format). Backend integration runs in CI.
+
+### Open questions
+
+| # | Item | Filler decision (changeable) |
+|---|---|---|
+| R-123 | "Curriculum notes" reuses grammar explanation/structure; vocab has no dedicated admin-notes field. | ⚙ Add a `curriculum_notes` column + admin editor field in a later slice; the card is ready. |
+| R-124 | Context tabs parse a best-guess JSON shape (several key spellings) and empty-state otherwise. | ⚙ Pin the `context` schema, then the normaliser can be tightened; seed data can populate it. |
+| R-125 | Item stats read the last 100 review answers (history cap). | ⚙ Fine for now; add a server-side by-direction aggregate if very active items need exact lifetime totals. |
+| R-126 | "Retiring date" = `fluent_at` (when it retires to Fluent), else "not yet". | ⚙ Swap for a projected burn date if you'd rather show a forecast. |
+| R-127 | Sticky sub-header uses `top-0`. | ⚙ If the app header is sticky in your build, offset it by the header height. |
