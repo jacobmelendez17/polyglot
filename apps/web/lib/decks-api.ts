@@ -1,7 +1,5 @@
-// Decks — browsable, read-only view of unlocked content.
-//
-// Split out of account-api.ts (which is now the settings + profile client) so
-// this doesn't collide with that file's purpose again.
+// Decks — browsable, read-only view of unlocked content, plus the unlock catalog
+// and learner-built (custom) decks.
 import { request } from "./http";
 
 export interface DeckSummary {
@@ -9,6 +7,21 @@ export interface DeckSummary {
   title: string;
   description: string;
   count: number;
+}
+
+// A deck as it appears in the catalog: always-on, threshold-gated, or custom.
+export interface CatalogDeck {
+  id: string;
+  title: string;
+  description: string;
+  glyph: string;
+  category: string;
+  threshold: number;
+  have: number;
+  need: number;
+  unlocked: boolean;
+  custom: boolean;
+  count?: number;
 }
 
 export interface DeckItem {
@@ -41,4 +54,19 @@ export const decks = {
 
   items: (type: string, limit = 50, offset = 0) =>
     request<DeckPage>(`/api/v1/me/decks/${type}?limit=${limit}&offset=${offset}`),
+
+  // slice 43 — unlock catalog + custom decks
+  catalog: () => request<CatalogDeck[]>("/api/v1/me/decks/catalog/all"),
+
+  createCustom: (name: string, description = "") =>
+    request<CatalogDeck>("/api/v1/me/decks/catalog/custom", {
+      method: "POST",
+      body: JSON.stringify({ name, description }),
+    }),
+
+  deleteCustom: (id: string) =>
+    request<{ id: string; deleted: boolean }>(
+      `/api/v1/me/decks/catalog/custom/${encodeURIComponent(id.replace(/^custom:/, ""))}`,
+      { method: "DELETE" },
+    ),
 };

@@ -2902,3 +2902,51 @@ present, defaults to lessons, switches panels, danger-zone log-out + delete cont
 | R-116 | Achievements + friends are placeholders. | ⚙ Build achievements (badges off streaks/levels/perfect items) and the friends/community layer (§18) in their own slices; the tabs are ready. |
 | R-117 | "answering" toggles fold under **reviews** (not a top-level sidebar item, per the requested six). | ⚙ Split "answering" into its own sidebar category if you'd rather; it's a one-line add. |
 | R-118 | Delete-account is a placeholder pointing to support. | ⚙ Wire a real `DELETE /me/account` (soft-delete + grace period + re-auth confirm) when account deletion is scoped. |
+
+---
+## Slice 43 — Deck unlocks + learner-built decks (§15, by request) (2026-08-12)
+
+Decks were three always-on collections (vocabulary/grammar/intermissions). Now the decks page is a
+catalog: always-on decks, **threshold-gated decks** that unlock as items reach Familiar, and
+**custom decks** the learner creates — with a see-through **"+"** ghost card to make one.
+
+**Unlock logic is pure + tested.** `domain/deck_unlock.py` holds the catalog (`BUILTIN_DECKS`) and
+`evaluate(counts) → DeckState[]`. A deck unlocks when a category's Familiar+ count (SRS ≥ 5) meets
+its threshold — e.g. **20 verbs → verbs deck**, **5 irregular verbs → irregular-verbs deck**. Category
+keys: `pos:<pos>` and `regularity:{regular,irregular}`. Shipped catalog also includes regular verbs
+(15), nouns (30), adjectives (15), adverbs (10). Fully unit-tested (thresholds, progress, isolation).
+
+**Backend.** `services/deck_catalog.py` computes `familiar_counts` (Familiar+ vocab by pos + verb
+regularity via `VerbMeta`), merges the always-on decks' live counts, and lists custom decks. Custom
+decks persist in a new **`custom_decks`** table (id, user_id, name, description, item_refs JSON,
+timestamps, soft-delete) — migration generated at install time chained to the real Alembic head
+(same head-computation approach as slice 39; aborts if not exactly one head). Routes appended to the
+decks router under multi-segment paths so they never collide with `GET /me/decks/{deck_type}`:
+`GET /me/decks/catalog/all`, `POST /me/decks/catalog/custom`, `DELETE /me/decks/catalog/custom/{id}`.
+
+**Frontend.** `/decks` renders the catalog: unlocked decks show their glyph + count; **locked decks
+are greyed with a 🔒, a "have/threshold familiar · N to go" line, and a progress bar** (not colour
+alone, §29); custom decks show a remove link; and a dashed **"+" ghost card** opens a create modal
+(name + description → `POST` → refresh). Always-on decks link to their item list as before; browsing
+the *contents* of unlockable/custom decks is the next slice.
+
+**Verified.** Pure logic runs green; the appended routes, the service, the `CustomDeck` model block,
+the generated migration, and both test files `py_compile`; the migration generator was exercised on
+a fake versions tree (chains to head, idempotent, aborts on multiple heads); the decks page + client
+transpile. Installer is idempotent and aborts-without-writing on divergence.
+
+**Tests: backend +14** (`test_deck_unlock.py` pure, runnable now; `test_deck_catalog_db.py`
+integration: catalog states, irregular-deck unlock at 5 + verbs progress, custom create/list/delete,
+name required, can't delete another user's deck, auth required — runs in CI).
+
+**Requested outline** of deck-unlock ideas: `docs/DECK_UNLOCKS.md` (pos decks, verb-class decks,
+tag/theme decks, level-milestone decks, leech/perfect/due-today, difficulty tiers) + how to add one.
+
+### Open questions
+
+| # | Item | Filler decision (changeable) |
+|---|---|---|
+| R-119 | Browsing the *items inside* unlockable/custom decks isn't wired yet (always-on decks work). | ⚙ Next slice: `GET /me/decks/catalog/{id}/items` (pos/regularity filter for builtin; item_refs for custom) + a catalog deck detail page. |
+| R-120 | Custom decks are created empty; no item-picker yet. | ⚙ Add "add to deck" from item pages (writes item_refs); the table already stores them. |
+| R-121 | Counts use es-MX (matching the existing decks service), not the active language. | ⚙ Thread active language through decks when R-65 is done. |
+| R-122 | Thresholds (20 verbs, 5 irregular, …) are filler constants. | ⚙ Tune in `deck_unlock.py`; they're named per deck. |

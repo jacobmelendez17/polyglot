@@ -153,15 +153,3 @@ class DeletionApproval(Base, TimestampMixin):
     requested_by: Mapped[uuid.UUID] = fk("users.id", nullable=False)
     approved_by: Mapped[uuid.UUID | None] = fk("users.id", nullable=True)  # must be owner
     executed_at: Mapped[datetime | None]
-
-
-class CustomDeck(Base, TimestampMixin):
-    """A learner-built deck (slice 43). item_refs = [{item_type, item_id}]."""
-
-    __tablename__ = "custom_decks"
-    id: Mapped[uuid.UUID] = pk()
-    user_id: Mapped[uuid.UUID] = fk("users.id", nullable=False, index=True)
-    name: Mapped[str] = mapped_column(String(80), nullable=False)
-    description: Mapped[str] = mapped_column(Text, default="")
-    item_refs: Mapped[list] = mapped_column(JSON, default=list)  # [{item_type,item_id}]
-    deleted_at: Mapped[datetime | None]

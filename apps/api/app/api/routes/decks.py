@@ -44,3 +44,61 @@ def deck_items(
             status_code=e.status,
             detail={"error": {"code": e.code, "message": e.message}},
         ) from e
+
+
+# ============================================================================
+# slice 43 — deck catalog (unlock states) + learner-built decks.
+# Appended to the existing decks router. Paths use two+ segments after /decks so
+# they never collide with the single-segment GET /me/decks/{deck_type} route.
+# ============================================================================
+from pydantic import BaseModel, Field  # noqa: E402
+
+from app.services import deck_catalog as _catalog  # noqa: E402
+
+
+class _CustomDeckCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    description: str = Field(default="", max_length=500)
+
+
+@router.get("/catalog/all")
+def deck_catalog_all(
+    db: Session = Depends(get_db), user: User = Depends(get_current_user),
+):
+    """Every deck with unlock state + progress, plus the user's custom decks."""
+    return deck_catalog_list(db, user)
+
+
+def deck_catalog_list(db: Session, user: User):
+    return _catalog.list_all_decks(db, user)
+
+
+@router.post("/catalog/custom", status_code=201)
+def create_custom_deck(
+    body: _CustomDeckCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    try:
+        result = _catalog.create_custom_deck(db, user, name=body.name, description=body.description)
+    except _catalog.DeckCatalogError as e:
+        raise HTTPException(status_code=e.status,
+                            detail={"error": {"code": e.code, "message": e.message}}) from e
+    db.commit()
+    return result
+
+
+@router.delete("/catalog/custom/{deck_id}")
+def delete_custom_deck(
+    deck_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    try:
+        result = _catalog.delete_custom_deck(db, user, deck_id)
+    except _catalog.DeckCatalogError as e:
+        raise HTTPException(status_code=e.status,
+                            detail={"error": {"code": e.code, "message": e.message}}) from e
+    db.commit()
+    return result
+# === end slice 43 ===========================================================
