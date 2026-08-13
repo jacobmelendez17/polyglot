@@ -3006,3 +3006,44 @@ time rounding across every bucket, word count, date format). Backend integration
 | R-125 | Item stats read the last 100 review answers (history cap). | ⚙ Fine for now; add a server-side by-direction aggregate if very active items need exact lifetime totals. |
 | R-126 | "Retiring date" = `fluent_at` (when it retires to Fluent), else "not yet". | ⚙ Swap for a projected burn date if you'd rather show a forecast. |
 | R-127 | Sticky sub-header uses `top-0`. | ⚙ If the app header is sticky in your build, offset it by the header height. |
+
+---
+## Slice 45 — Spring animations in onboarding (Motion) (2026-08-13)
+
+First use of spring animation in the app (§35). Added **Motion** (formerly Framer Motion,
+`"motion": "^12.0.0"`, imported from `motion/react`) and reworked `apps/web/app/welcome/page.tsx`.
+The existing `SlideArt` SVGs and `NotebookGag` are untouched — this is a surgical patch, not a rewrite.
+
+**Per-slide spring animation.** Each slide is a keyed `motion.div` inside `AnimatePresence` (`mode="wait"`):
+the panel springs in from the swipe direction and out the other way, and its contents (art, title, body,
+gag) **stagger in** with a gentle spring via variants (`staggerChildren`). Direction is tracked so back
+and next animate opposite ways. Two spring "personalities" — a smooth slide for the panel, a softer pop
+for contents. `useReducedMotion()` collapses everything to instant + opacity (§29).
+
+**Sticky footer (buttons stop moving).** The layout changed from one vertically-centered stack to a
+column: the slide lives in a `flex-1` animation area (centered within), and the **back/next bar sits in a
+fixed footer**, so it stays in the same place on every slide instead of shifting with slide height.
+
+**Dots moved below the animation.** The progress dots were above the art; they're now in the footer,
+below the animation and above the buttons, and the active dot springs its width. A visually-hidden
+`aria-live` "step N of 5" rides alongside for screen readers.
+
+**Verified.** Both patchers apply to a faithful skeleton, transpile through esbuild, and are idempotent
+(abort-without-writing on divergence); the package.json insert keeps valid JSON; the component test
+transpiles. Motion's runtime API (`motion`, `AnimatePresence`, `useReducedMotion`, variants, spring
+transitions) is standard and documented, but note it isn't executed in the sandbox — it runs after
+`npm install` on rebuild.
+
+**Tests: frontend +4** (`welcome/__tests__/onboarding.test.tsx`, Motion mocked): first slide + skip/next,
+advance shows back, "step 1 of 5" announcement renders below the slide, last slide finishes to
+`/choose-language`. Runs in CI.
+
+**Requires `npm install`** (new dependency) — a `docker compose up --build` does this automatically.
+
+### Open questions
+
+| # | Item | Filler decision (changeable) |
+|---|---|---|
+| R-128 | Motion variants use `type: "spring"` string literals typed via `Variants`. | ⚙ If `next build`'s strict TS ever rejects a literal, it's a one-line `as const` on that transition. |
+| R-129 | Spring constants (stiffness/damping) are inline. | ⚙ Promote to shared `springs.ts` tokens when Motion spreads to reviews/dashboard (next animation slices). |
+| R-130 | SlideArt internals aren't individually spring-animated yet (whole art pops in). | ⚙ Can stagger the SVG shapes (stepping stones, trail signs) per slide later for extra life. |

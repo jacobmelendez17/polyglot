@@ -5,7 +5,6 @@ import { onboarding } from "@/lib/feedback-api";
 import { useState } from "react";
 import { Protected } from "@/components/protected";
 import { Button } from "@/components/ui";
-import { AnimatePresence, motion, useReducedMotion, type Variants } from "motion/react";
 
 // Onboarding slides (PLANNING §Phase 4, pulled forward). Five slides introduce
 // the method. The two "gag" slides are gentle interactive jokes with accessible
@@ -61,29 +60,6 @@ function Onboarding() {
   const [i, setI] = useState(0);
   const slide = SLIDES[i];
   const last = i === SLIDES.length - 1;
-  const [dir, setDir] = useState(1);
-  const reduce = useReducedMotion();
-  const go = (delta: number) => { setDir(delta); setI((n) => n + delta); };
-
-  // Two spring personalities: a smooth slide for the whole panel, and a
-  // gentle staggered pop for its contents. Reduced motion → instant + opacity.
-  const container: Variants = {
-    initial: (d: number) => (reduce ? { opacity: 0 } : { opacity: 0, x: d * 60 }),
-    animate: {
-      opacity: 1,
-      x: 0,
-      transition: reduce
-        ? { duration: 0 }
-        : { type: "spring", stiffness: 320, damping: 30, when: "beforeChildren", staggerChildren: 0.08 },
-    },
-    exit: (d: number) => (reduce
-      ? { opacity: 0 }
-      : { opacity: 0, x: d * -60, transition: { type: "spring", stiffness: 320, damping: 30 } }),
-  };
-  const item: Variants = {
-    initial: reduce ? { opacity: 0 } : { opacity: 0, y: 14 },
-    animate: { opacity: 1, y: 0, transition: reduce ? { duration: 0 } : { type: "spring", stiffness: 300, damping: 24 } },
-  };
 
   function finish() {
     // Remember they've seen it so we don't show it again — server-side is the
@@ -94,61 +70,35 @@ function Onboarding() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-lg flex-col p-6">
-      {/* animation area — a fixed region so the footer never shifts per slide */}
-      <div className="flex flex-1 items-center justify-center overflow-hidden">
-        <AnimatePresence mode="wait" custom={dir} initial={false}>
-          <motion.div
-            key={slide.key}
-            custom={dir}
-            variants={container}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-            className="flex w-full flex-col items-center gap-8 text-center"
-          >
-            <motion.div variants={item}>
-              <SlideArt art={slide.art} />
-            </motion.div>
-            <div>
-              <motion.h1 variants={item} className="text-3xl lowercase tracking-cozy">
-                {slide.title}
-              </motion.h1>
-              <motion.p variants={item} className="mx-auto mt-4 max-w-md text-terraza-soft">
-                {slide.body}
-              </motion.p>
-              {slide.gag && (
-                <motion.div variants={item}><NotebookGag /></motion.div>
-              )}
-            </div>
-          </motion.div>
-        </AnimatePresence>
+    <main className="mx-auto flex min-h-screen max-w-lg flex-col justify-center gap-8 p-6">
+      {/* progress dots */}
+      <div className="flex justify-center gap-2">
+        {SLIDES.map((s, idx) => (
+          <div key={s.key}
+            className={`h-2 rounded-full transition-all ${
+              idx === i ? "w-8 bg-terraza-accent" : "w-2 bg-terraza-pill"
+            }`} />
+        ))}
       </div>
 
-      {/* footer: progress dots BELOW the animation, then the fixed button bar */}
-      <div className="mt-6 flex flex-col gap-5">
-        <div className="flex justify-center gap-2" aria-hidden="true">
-          {SLIDES.map((s, idx) => (
-            <motion.div
-              key={s.key}
-              className={`h-2 rounded-full ${idx === i ? "bg-terraza-accent" : "bg-terraza-pill"}`}
-              animate={{ width: idx === i ? 32 : 8 }}
-              transition={reduce ? { duration: 0 } : { type: "spring", stiffness: 400, damping: 32 }}
-            />
-          ))}
-        </div>
-        <p className="sr-only" aria-live="polite">step {i + 1} of {SLIDES.length}</p>
-        <div className="flex items-center justify-between">
-          <button
-            onClick={() => (i === 0 ? finish() : go(-1))}
-            className="rounded-full px-5 py-2 text-sm text-terraza-soft hover:bg-terraza-pill"
-          >
-            {i === 0 ? "skip" : "← back"}
-          </button>
-          <Button onClick={() => (last ? finish() : go(1))}>
-            {last ? "empezar →" : "next →"}
-          </Button>
-        </div>
+      <SlideArt art={slide.art} />
+
+      <div className="text-center">
+        <h1 className="text-3xl lowercase tracking-cozy">{slide.title}</h1>
+        <p className="mx-auto mt-4 max-w-md text-terraza-soft">{slide.body}</p>
+        {slide.gag && <NotebookGag />}
+      </div>
+
+      <div className="flex items-center justify-between">
+        <button
+          onClick={() => (i === 0 ? finish() : setI(i - 1))}
+          className="rounded-full px-5 py-2 text-sm text-terraza-soft hover:bg-terraza-pill"
+        >
+          {i === 0 ? "skip" : "← back"}
+        </button>
+        <Button onClick={() => (last ? finish() : setI(i + 1))}>
+          {last ? "empezar →" : "next →"}
+        </Button>
       </div>
     </main>
   );
