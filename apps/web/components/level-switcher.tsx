@@ -6,7 +6,7 @@
 // Locked levels show but don't navigate, same lock treatment as the index page.
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { learn, type Level } from "@/lib/learn-api";
 
 export function LevelSwitcher({
@@ -14,13 +14,31 @@ export function LevelSwitcher({
 }: { current?: number; label?: string; triggerClassName?: string; hideChevron?: boolean }) {
   const [levels, setLevels] = useState<Level[] | null>(null);
   const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     learn.levels().then(setLevels).catch(() => setLevels([]));
   }, []);
 
+  // Close the level menu on an outside click or Escape.
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
   return (
-    <div className="relative inline-block">
+    <div className="relative inline-block" ref={menuRef}>
       <button
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
