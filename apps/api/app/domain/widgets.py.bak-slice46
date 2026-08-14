@@ -75,8 +75,6 @@ CATALOG: tuple[Widget, ...] = (
            default=False, span=3, min_span=2),
     Widget("lessons_ready", "Lessons ready", "Items waiting to be learned.",
            default=False, span=2, max_span=3),
-    Widget("review_activity", "Review activity", "How often you review — 7-day or 24-hour.",
-           default=True, span=3, min_span=2),
 )
 
 CATALOG_BY_KEY: dict[str, Widget] = {w.key: w for w in CATALOG}

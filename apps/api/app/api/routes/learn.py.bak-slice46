@@ -410,34 +410,3 @@ def item_progress(item_type: str, item_id: str, db: Session = Depends(get_db),
             for h in view.history
         ],
     )
-
-
-# ============================================================================
-# slice 46 — review activity over time (for the dashboard line graph).
-# Returns both a 7-day (daily) and a 24-hour (hourly) series so the widget's
-# toggle can spring between them without a refetch. Bucketed by created_at
-# (timestamptz) to avoid naive/aware comparison issues.
-# ============================================================================
-import datetime as _dt46  # noqa: E402
-
-from app.domain import activity as _activity  # noqa: E402
-from app.models.progress import ReviewAnswer as _ReviewAnswer  # noqa: E402
-
-_ACTIVITY_LOOKBACK_CAP = 20000
-
-
-@router.get("/me/reviews/activity")
-def review_activity(
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
-):
-    now = _dt46.datetime.now(tz=_dt46.timezone.utc)
-    since = now - _dt46.timedelta(days=7)
-    rows = db.execute(
-        select(_ReviewAnswer.created_at)
-        .where(_ReviewAnswer.user_id == user.id, _ReviewAnswer.created_at >= since)
-        .order_by(_ReviewAnswer.created_at.desc())
-        .limit(_ACTIVITY_LOOKBACK_CAP)
-    ).scalars().all()
-    timestamps = [t for t in rows if t is not None]
-    return _activity.activity_series(timestamps, now)

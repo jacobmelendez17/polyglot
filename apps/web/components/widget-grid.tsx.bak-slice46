@@ -17,13 +17,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  FluentWidget, LeechWidget, PracticeWidget,
+  FluentWidget, ForecastWidget, LeechWidget, PracticeWidget,
   ProgressionWidget, WelcomeWidget, XpWidget,
 } from "@/components/widgets";
 import {
   LessonsReadyWidget, NextReviewWidget, StageDetailWidget,
 } from "@/components/widgets-extra";
-import { ForecastBarsWidget, ReviewActivityWidget } from "@/components/widgets-graphs";
 import { Card } from "@/components/ui";
 import { dashboard, type CatalogEntry, type DashboardConfig } from "@/lib/dashboard-api";
 import {
@@ -37,8 +36,7 @@ import {
 const REGISTRY: Record<string, () => React.JSX.Element> = {
   welcome: WelcomeWidget,
   progression: ProgressionWidget,
-  forecast: ForecastBarsWidget,
-  review_activity: ReviewActivityWidget,
+  forecast: ForecastWidget,
   xp: XpWidget,
   fluent: FluentWidget,
   leech: LeechWidget,

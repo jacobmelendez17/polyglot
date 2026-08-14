@@ -3047,3 +3047,43 @@ advance shows back, "step 1 of 5" announcement renders below the slide, last sli
 | R-128 | Motion variants use `type: "spring"` string literals typed via `Variants`. | ⚙ If `next build`'s strict TS ever rejects a literal, it's a one-line `as const` on that transition. |
 | R-129 | Spring constants (stiffness/damping) are inline. | ⚙ Promote to shared `springs.ts` tokens when Motion spreads to reviews/dashboard (next animation slices). |
 | R-130 | SlideArt internals aren't individually spring-animated yet (whole art pops in). | ⚙ Can stagger the SVG shapes (stepping stones, trail signs) per slide later for extra life. |
+
+---
+## Slice 46 — Spring graph widgets on the dashboard (2026-08-13)
+
+Two Bunpro-style, spring-animated graph widgets, using Motion (added in slice 45).
+
+**Forecast → spring bar graph.** The existing `forecast` widget (reviews arriving over the next 7 days,
+from `/me/stats`) is now `ForecastBarsWidget`: each bar grows up from the baseline on a staggered spring
+(`scaleY` 0→1) instead of a CSS height transition.
+
+**New "review activity" line graph with a 7d / 24h toggle.** `ReviewActivityWidget` plots how often the
+learner reviews, and a segmented toggle switches between a **7-day (daily)** and **24-hour (hourly)** view.
+The switch is a spring transition (`AnimatePresence` cross-slide), and within each view the line **draws on**
+via a `pathLength` spring while the points **rise from the baseline** with a staggered `cy` spring. Reduced
+motion collapses all of it to instant + opacity (§29); the SVG carries an `aria-label` and a text summary
+("N reviews this week/today") so it isn't a chart-only widget.
+
+**Backend.** New `GET /api/v1/me/reviews/activity` returns **both** series in one response (so the toggle
+springs without a refetch), aggregated from `ReviewAnswer.created_at` for the user over the last 7 days.
+Bucketing is a pure module (`domain/activity.py`): 7 fixed daily buckets (today last) and 24 fixed hourly
+buckets (current hour last), tolerant of naive timestamps. `review_activity` added to the widget
+`CATALOG` (default, span 3) and to the frontend `REGISTRY`; the forecast entry now points at the spring
+bar widget and the unused import was dropped.
+
+**Verified.** The pure bucketing runs green across every boundary (windows, today/this-hour, exclusions);
+the route block, catalog patch, both test files compile; the catalog + grid patchers apply idempotently
+(and clean up the unused import); the new widgets and client transpile. Motion runs after `npm install`
+(already a dependency from slice 45) — its API here (`motion.path` pathLength, `motion.circle` cy,
+`AnimatePresence`, `useReducedMotion`, springs) is standard but not executed in the sandbox.
+
+**Tests: backend +9** (`test_activity.py` pure bucketing; `test_activity_db.py` integration: shape, 7-day vs
+24-hour counts, empty new user, auth required). No migration — reads existing `review_answers`.
+
+### Open questions
+
+| # | Item | Filler decision (changeable) |
+|---|---|---|
+| R-131 | Buckets are computed in UTC, not the learner's timezone. | ⚙ Thread the profile timezone through when we surface it elsewhere; the pure helper already takes `now`. |
+| R-132 | `review_activity` is default-on, so it appears for new dashboards; existing users add it via "customize". | ⚙ Expected — saved layouts aren't force-migrated. |
+| R-133 | Activity counts every `ReviewAnswer` (both prompt directions of a pair). | ⚙ If you'd rather count review *events* (pairs) or sessions, swap the source; the endpoint is one query. |
