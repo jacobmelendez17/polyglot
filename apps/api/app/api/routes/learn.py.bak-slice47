@@ -441,37 +441,3 @@ def review_activity(
     ).scalars().all()
     timestamps = [t for t in rows if t is not None]
     return _activity.activity_series(timestamps, now)
-
-
-# ============================================================================
-# slice 47 — review forecast (bar graph days + hourly drill, line graph series).
-# Buckets upcoming next_review_at (srs < fluent) into the next 7 days (with a
-# per-day hourly breakdown) and the next 24 hours. Rows are fetched and bucketed
-# in Python (like /me/stats) to avoid naive/aware comparison issues in SQL.
-# ============================================================================
-import datetime as _dt47  # noqa: E402
-
-from app.domain import forecast as _forecast  # noqa: E402
-from app.domain import srs as _srs47  # noqa: E402
-from app.models.progress import UserItemProgress as _UIP47  # noqa: E402
-
-_FORECAST_CAP = 50000
-
-
-@router.get("/me/reviews/forecast")
-def review_forecast(
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
-):
-    now = _dt47.datetime.now(tz=_dt47.timezone.utc)
-    rows = db.execute(
-        select(_UIP47.next_review_at)
-        .where(
-            _UIP47.user_id == user.id,
-            _UIP47.next_review_at.is_not(None),
-            _UIP47.srs_stage < int(_srs47.Stage.fluent),
-        )
-        .limit(_FORECAST_CAP)
-    ).scalars().all()
-    upcoming = [t for t in rows if t is not None]
-    return _forecast.forecast_payload(upcoming, now)

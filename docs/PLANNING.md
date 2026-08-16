@@ -3087,3 +3087,46 @@ the route block, catalog patch, both test files compile; the catalog + grid patc
 | R-131 | Buckets are computed in UTC, not the learner's timezone. | ⚙ Thread the profile timezone through when we surface it elsewhere; the pure helper already takes `now`. |
 | R-132 | `review_activity` is default-on, so it appears for new dashboards; existing users add it via "customize". | ⚙ Expected — saved layouts aren't force-migrated. |
 | R-133 | Activity counts every `ReviewAnswer` (both prompt directions of a pair). | ⚙ If you'd rather count review *events* (pairs) or sessions, swap the source; the endpoint is one query. |
+
+---
+## Slice 47 — Corrected dashboard graphs: real forecast + morphing line (2026-08-14)
+
+Fixes the two graph widgets from slice 46 per feedback. Both now read a new forecast endpoint
+(`GET /me/reviews/forecast`) built from upcoming `next_review_at`s (srs < fluent), bucketed in a pure
+module (`domain/forecast.py`, fully tested): 7 daily buckets (today, then weekdays) each with a 24-slot
+hourly breakdown, plus a rolling next-24-hour series. Overdue ("due now") items are excluded — a forecast
+looks forward. UTC buckets (R-131).
+
+**Forecast bar graph.** Bars for **today + the next 6 days labelled by weekday** (fri, sat, …). Each bar
+is a button — **click a day to drill into that day's 24-hour forecast**, with a "← week" back button.
+Bars grow up on a staggered spring.
+
+**Review line graph → a morphing forecast.** It's now a **forecast of the NEXT 7 days / NEXT 24 hours**
+(not past activity). The line is **cumulative**, so it **always starts at y=0** and rises to the total
+upcoming load. Both views are resampled to a fixed 25 points, so toggling **morphs the same line** — the
+path and every point spring to their new positions — instead of wiping and redrawing. Reduced motion
+collapses to instant; the SVG has an `aria-label` and a text summary.
+
+**Self-contained.** Includes the (idempotent) catalog + grid registration patchers from slice 46, so this
+slice stands alone whether or not 46 was applied: it registers the spring forecast bars and the line
+widget (`review_activity` key) and drops the unused import. `widgets-graphs.tsx` keeps the same export
+names, so an existing slice-46 registry still resolves. Slice 46's `/me/reviews/activity` endpoint and
+`activity-api.ts` are left in place (harmless, now unused by the widgets).
+
+**Verified.** Pure forecast logic runs green across boundaries (today/weekday labels, upcoming-only
+window, hourly drill, rolling 24h); the route block compiles on a learn stub; both test files compile;
+the widgets + client transpile; the registration patchers apply idempotently. Motion runs after
+`npm install` (dependency since slice 45); the line morph uses Motion's declarative `d`/`cy` animation
+(same 25-point structure both views), with the springing points guaranteeing a visible morph even if a
+given Motion build interpolates `d` conservatively.
+
+**Tests: backend +8** (`test_forecast.py` pure; `test_forecast_db.py` integration: shape, weekday labels,
+upcoming-only counts, day-0 count, next-24h count, empty user, auth). No migration.
+
+### Open questions
+
+| # | Item | Filler decision (changeable) |
+|---|---|---|
+| R-134 | Line is **cumulative** ("review load builds to N"), the reading that makes "starts at y=0" natural. | ⚙ If you meant per-bucket (reviews due each day/hour) with a leading 0, it's a one-line change in `buildPoints`. |
+| R-131 | Buckets are UTC. | ⚙ Thread the profile timezone when surfaced; the pure helper already takes `now`. |
+| R-135 | Slice 46's activity endpoint/api remain but are unused. | ⚙ Remove in a cleanup pass if you never want past-activity, or keep for a future "history" widget. |
